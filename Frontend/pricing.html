@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pricing - Wispwish</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #7B5AFF;
+      --primary-dark: #6343F5;
+      --primary-light: #F0E9FF;
+      --secondary: #FF85A2;
+      --dark: #1A1A2E;
+      --light: #F8F9FF;
+      --gray: #E5E7EB;
+      --dark-gray: #6B7280;
+      --success: #10B981;
+      --warning: #F59E0B;
+      --danger: #EF4444;
+      --font-primary: 'Poppins', sans-serif;
+      --font-secondary: 'Montserrat', sans-serif;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      --border-radius: 12px;
+      --border-radius-lg: 20px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-primary);
+      color: var(--dark);
+      background-color: var(--light);
+      line-height: 1.6;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Header Styles */
+    /* #mainHeader {
+      position: sticky;
+      top: 0;
+      left: 0;
+      width: 100%;
+      z-index: 1000;
+      background-color: rgba(255, 255, 255, 0.98);
+      backdrop-filter: blur(8px);
+      box-shadow: var(--shadow-sm);
+      padding: 16px 0;
+    }
+
+    #mainHeader .container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      font-family: var(--font-secondary);
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--primary);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo::before {
+      content: "✨";
+      font-size: 1.5rem;
+    }
+
+    nav {
+      display: flex;
+      gap: 28px;
+    }
+
+    nav a {
+      font-family: var(--font-secondary);
+      font-weight: 500;
+      color: var(--dark);
+      text-decoration: none;
+      transition: var(--transition);
+      position: relative;
+      font-size: 0.95rem;
+    }
+
+    nav a:hover {
+      color: var(--primary);
+    }
+
+    nav a.active {
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    nav a.active::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background-color: var(--primary);
+    }
+
+    .mobile-menu-btn {
+      display: none;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      color: var(--dark);
+      cursor: pointer;
+    } */
+
+    /* Pricing Hero */
+    .pricing-hero {
+      padding: 140px 0 80px;
+      text-align: center;
+      background: linear-gradient(135deg, #F8F9FF 0%, #F0E9FF 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .pricing-hero::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -20%;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(123, 90, 255, 0.1) 0%, rgba(123, 90, 255, 0) 70%);
+      z-index: 0;
+    }
+
+    .pricing-hero h1 {
+      font-size: 3.2rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .pricing-hero p {
+      font-size: 1.3rem;
+      color: var(--dark-gray);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* Pricing Plans - Improved Layout */
+    .pricing-plans {
+      padding: 80px 0;
+      position: relative;
+      background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
+    }
+    
+    .pricing-plans::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 100%;
+      background-color: rgba(123, 90, 255, 0.02);
+      z-index: -1;
+    }
+    
+    .plans-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 40px;
+      margin-top: 60px;
+      max-width: 1100px;
+      margin-left: auto;
+      margin-right: auto;
+      overflow: visible; /* Add this line */
+    }
+    
+    .pricing-plans {
+      padding: 80px 0;
+      position: relative;
+      background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
+      overflow: visible; /* Add this line */
+    }
+    
+    .plan {
+      background: white;
+      border-radius: 24px;
+      padding: 45px 35px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+      border: 2px solid transparent;
+      text-align: center;
+    }
+    
+    .plan:hover {
+      transform: translateY(-12px) scale(1.02);
+      box-shadow: 0 20px 60px rgba(123, 90, 255, 0.15);
+      border-color: var(--primary);
+    }
+    
+    .plan::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 6px;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+    }
+    
+    .plan h3 {
+      font-size: 1.8rem;
+      margin-bottom: 25px;
+      color: var(--dark);
+      font-family: var(--font-secondary);
+      font-weight: 700;
+    }
+    
+    .price {
+      font-size: 3.5rem;
+      font-weight: 800;
+      margin-bottom: 30px;
+      color: var(--primary);
+      position: relative;
+      display: inline-block;
+      line-height: 1;
+    }
+    
+    .price::after {
+      content: '/gift';
+      position: absolute;
+      bottom: 8px;
+      right: -50px;
+      font-size: 1.1rem;
+      color: var(--dark-gray);
+      font-weight: 500;
+    }
+    
+    .features {
+      list-style: none;
+      margin-bottom: 40px;
+      text-align: left;
+    }
+    
+    .features li {
+      padding: 12px 0;
+      position: relative;
+      padding-left: 35px;
+      color: var(--dark-gray);
+      font-size: 1.05rem;
+      line-height: 1.5;
+    }
+    
+    .features li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: var(--success);
+      font-weight: bold;
+      font-size: 1.2rem;
+      background: rgba(16, 185, 129, 0.1);
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      top: 8px;
+    }
+    
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px 32px;
+      border-radius: 50px;
+      font-family: var(--font-secondary);
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+      border: none;
+      font-size: 1.1rem;
+      width: 100%;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .btn.primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white;
+      box-shadow: 0 8px 24px rgba(123, 90, 255, 0.3);
+    }
+    
+    .btn.primary:hover {
+      background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+      transform: translateY(-3px);
+      box-shadow: 0 12px 32px rgba(123, 90, 255, 0.4);
+    }
+    
+    /* Popular Plan - Enhanced */
+    .plan.popular {
+      border: 3px solid var(--primary);
+      position: relative;
+      transform: scale(1.05);
+      background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+    }
+    
+    .plan.popular:hover {
+      transform: translateY(-12px) scale(1.07);
+    }
+    
+    .popular-badge {
+      position: absolute;
+      top: -15px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, var(--primary), var(--secondary));      color: white;
+      padding: 6px 16px; /* Reduced padding to make it shorter */
+      border-radius: 20px; /* Clean border radius */
+      font-size: 0.85rem; /* Slightly smaller font */
+      font-weight: 700;
+      box-shadow: 0 4px 16px rgba(123, 90, 255, 0.3);
+      text-transform: uppercase;
+      letter-spacing: 0.3px; /* Reduced letter spacing */
+      z-index: 10;
+      white-space: nowrap; /* Prevent text wrapping */
+      min-width: auto; /* Remove any minimum width constraints */
+    }
+    
+    /* Also update the popular plan container */
+    .plan.popular {
+      border: 3px solid var(--primary);
+      position: relative;
+      transform: scale(1.05);
+      background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+      overflow: visible; /* Add this line to ensure badge is visible */
+    }
+    
+    .plan.popular:hover {
+      transform: translateY(-12px) scale(1.07);
+    }
+    
+    .popular-badge {
+      position: absolute;
+      top: -12px;
+      right: 30px;
+      background: var(--primary);
+      color: white;
+      padding: 5px 15px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Responsive Styles */
+    @media (max-width: 768px) {
+      .pricing-hero {
+        padding: 120px 0 60px;
+      }
+
+      .pricing-hero h1 {
+        font-size: 2.4rem;
+      }
+
+      .pricing-hero p {
+        font-size: 1.1rem;
+      }
+
+      .plans-container {
+        grid-template-columns: 1fr;
+        max-width: 500px;
+        margin: 0 auto;
+      }
+
+      nav {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background-color: white;
+        flex-direction: column;
+        padding: 20px;
+        box-shadow: var(--shadow-md);
+      }
+
+      .mobile-menu-btn {
+        display: block;
+      }
+    }
+
+      /* Simple Footer */
+    footer {
+      background-color: var(--dark);
+      color: white;
+      padding: 20px 0;
+      text-align: center;
+    }
+
+    footer p {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 480px) {
+      .pricing-hero h1 {
+        font-size: 2rem;
+      }
+
+      .logo {
+        font-size: 1.5rem;
+      }
+
+      .plan {
+        padding: 30px 20px;
+      }
+
+      .price {
+        font-size: 2.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+ < header id="mainHeader">
+    <div class="container">
+      <a href="/" class="logo">Wispwish</a>
+      <nav>
+        <a href="http://127.0.0.1:5500/Frontend/generator.html" class="protected-link">Create Gift</a>
+        <a href="http://127.0.0.1:5500/Frontend/wishknot.html" class="protected-link">WishKnot</a>
+        <a href="http://127.0.0.1:5500/Frontend/pricing.html">Pricing</a>
+        <a href="http://127.0.0.1:5500/Frontend/how-it-works.html">How It Works</a>
+        <!-- <a href="/login.html" class="auth-link">Login</a> -->
+        <a href="http://127.0.0.1:5500/Frontend/login.html" class="auth-link" id="loginLink">Login</a>
+        <a href="#" class="auth-link" id="logoutLink" style="display: none;">Logout</a>
+        
+      </nav>
+      <button class="mobile-menu-btn">
+        <i class="fas fa-bars"></i>
+      </button>
+    </div>
+  </header> 
+  
+  <main class="pricing-page">
+    <section class="pricing-hero">
+      <div class="container">
+        <h1>Simple, Transparent Pricing</h1>
+        <p>Gifting feelings has never been so affordable</p>
+      </div>
+    </section>
+
+    <section class="pricing-plans">
+      <div class="container">
+        <div class="plans-container">
+          <div class="plan">
+            <h3>AI Poem</h3>
+            <div class="price">$8</div>
+            <ul class="features">
+              <li>Heartfelt AI-generated poem</li>
+              <li>Customized with your memories</li>
+              <li>3 revision cycles</li>
+              <li>Instant delivery</li>
+            </ul>
+            <a href="generator.html" class="btn primary">Create Now</a>
+          </div>
+          
+          <div class="plan popular">
+            <div class="popular-badge">Most Popular</div>
+            <h3>WishKnot</h3>
+            <div class="price">$12</div>
+            <ul class="features">
+              <li>Beautiful animated knot gift</li>
+              <li>Custom message inside</li>
+              <li>Scheduled delivery</li>
+              <li>Premium designs</li>
+              <li>5 revision cycles</li>
+            </ul>
+            <a href="generator.html?type=wishknot" class="btn primary">Create Now</a>
+          </div>
+          
+          <div class="plan">
+            <h3>Premium Bundle</h3>
+            <div class="price">$18</div>
+            <ul class="features">
+              <li>AI Poem + WishKnot combo</li>
+              <li>Premium customization</li>
+              <li>Unlimited revisions</li>
+              <li>Priority support</li>
+              <li>Special gift wrapping</li>
+            </ul>
+            <a href="generator.html?type=bundle" class="btn primary">Create Now</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      <p>&copy; 2023 Wispwish. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Mobile menu toggle
+      const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+      const nav = document.querySelector('nav');
+      
+      if (mobileMenuBtn && nav) {
+        mobileMenuBtn.addEventListener('click', function() {
+          nav.style.display = nav.style.display === 'flex' ? 'none' : 'flex';
+        });
+
+        function handleResize() {
+          if (window.innerWidth > 768) {
+            nav.style.display = 'flex';
+          } else {
+            nav.style.display = 'none';
+          }
+        }
+
+        window.addEventListener('resize', handleResize);
+        handleResize();
+      }
+
+      // Plan hover effects
+      const plans = document.querySelectorAll('.plan');
+      plans.forEach(plan => {
+        plan.addEventListener('mouseenter', function() {
+          this.style.transform = 'translateY(-10px)';
+        });
+        plan.addEventListener('mouseleave', function() {
+          this.style.transform = 'translateY(0)';
+        });
+      });
+    });
+  </script> -->
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+      const nav = document.querySelector('nav');
+  
+      if (mobileMenuBtn && nav) {
+        mobileMenuBtn.addEventListener('click', function () {
+          nav.style.display = nav.style.display === 'flex' ? 'none' : 'flex';
+        });
+  
+        function handleResize() {
+          if (window.innerWidth > 768) {
+            nav.style.display = 'flex';
+          } else {
+            nav.style.display = 'none';
+          }
+        }
+  
+        window.addEventListener('resize', handleResize);
+        handleResize();
+      }
+  
+      // 👉 Pricing plan hover effect
+      const plans = document.querySelectorAll('.plan');
+      plans.forEach(plan => {
+        plan.addEventListener('mouseenter', function () {
+          this.style.transform = 'translateY(-10px)';
+        });
+        plan.addEventListener('mouseleave', function () {
+          this.style.transform = 'translateY(0)';
+        });
+      });
+  
+      // 👉 Auth Toggle Login/Logout
+      const loginLink = document.getElementById('loginLink');
+      const logoutLink = document.getElementById('logoutLink');
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+  
+      if (token) {
+        loginLink.style.display = 'none';
+        logoutLink.style.display = 'inline-block';
+      } else {
+        loginLink.style.display = 'inline-block';
+        logoutLink.style.display = 'none';
+      }
+  
+      logoutLink.addEventListener('click', function (e) {
+        e.preventDefault();
+        localStorage.removeItem('token');
+        sessionStorage.removeItem('token');
+        window.location.href = '/login.html'; // Or use: location.reload();
+      });
+  
+      // 👉 Protected Link Access Check
+      const protectedLinks = document.querySelectorAll('.protected-link');
+      protectedLinks.forEach(link => {
+        link.addEventListener('click', async function (e) {
+          e.preventDefault();
+          try {
+            const response = await fetch('http://localhost:5001/api/check-auth', {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+  
+            if (response.ok) {
+              window.location.href = link.href;
+            } else {
+              window.location.href = `http://127.0.0.1:5500/Frontend/login.html?redirect=${encodeURIComponent(link.pathname)}`;
+            }
+          } catch (err) {
+            console.error('Auth check error:', err);
+            window.location.href = `http://127.0.0.1:5500/Frontend/login.html?redirect=${encodeURIComponent(link.pathname)}`;
+          }
+        });
+      });
+    });
+  </script>
+  
+</body>
+
+</html>

@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Your Gift - Wispwish</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #7B5AFF; 
+      --primary-dark: #6343F5;
+      --secondary: #FF85A2;
+      --dark: #1A1A2E;
+      --light: #F8F9FF;
+      --gray: #E5E7EB;
+      --dark-gray: #6B7280;
+      --success: #10B981;
+      --warning: #F59E0B;
+      --danger: #EF4444;
+      --font-primary: 'Poppins', sans-serif;
+      --font-secondary: 'Montserrat', sans-serif;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      --border-radius: 12px;
+      --border-radius-lg: 20px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-primary);
+      color: var(--dark);
+      background-color: var(--light);
+      line-height: 1.6;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    #mainHeader {
+      position: sticky;
+      top: 0;
+      left: 0;
+      width: 100%;
+      z-index: 1000;
+      background-color: rgba(255, 255, 255, 0.98);
+      backdrop-filter: blur(8px);
+      box-shadow: var(--shadow-sm);
+      padding: 16px 0;
+    }
+
+    #mainHeader .container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      font-family: var(--font-secondary);
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--primary);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo::before {
+      content: "✨";
+      font-size: 1.5rem;
+    }
+
+    nav {
+      display: flex;
+      gap: 28px;
+    }
+
+    nav a {
+      font-family: var(--font-secondary);
+      font-weight: 500;
+      color: var(--dark);
+      text-decoration: none;
+      transition: var(--transition);
+      position: relative;
+      font-size: 0.95rem;
+    }
+
+    nav a:hover {
+      color: var(--primary);
+    }
+
+    nav a.active {
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    nav a.active::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background-color: var(--primary);
+    }
+
+    main.gift-flow {
+      padding: 60px 0 100px;
+      min-height: calc(100vh - 72px);
+    }
+
+    .progress-container {
+      max-width: 800px;
+      margin: 0 auto 48px;
+      padding: 0 24px;
+    }
+
+    .progress-bar {
+      display: flex;
+      justify-content: space-between;
+      position: relative;
+    }
+
+    .progress-bar::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background-color: var(--gray);
+      transform: translateY(-50%);
+      z-index: 0;
+      border-radius: 2px;
+    }
+
+    .progress-bar::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: var(--progress, '20%');
+      height: 4px;
+      background-color: var(--primary);
+      transform: translateY(-50%);
+      z-index: 1;
+      border-radius: 2px;
+      transition: var(--transition);
+    }
+
+    .step {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background-color: var(--gray);
+      color: var(--dark-gray);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-secondary);
+      font-weight: 600;
+      position: relative;
+      z-index: 2;
+      transition: var(--transition);
+    }
+
+    .step.active {
+      background-color: var(--primary);
+      color: white;
+      box-shadow: 0 0 0 4px rgba(123, 90, 255, 0.2);
+    }
+
+    #gift-form {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .form-step {
+      display: none;
+      animation: fadeIn 0.5s ease-out forwards;
+    }
+
+    .form-step.active {
+      display: block;
+    }
+
+    .form-step h2 {
+      font-size: 2rem;
+      margin-bottom: 32px;
+      text-align: center;
+      color: var(--dark);
+      font-weight: 700;
+    }
+
+    .occasion-options, .gift-options {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 20px;
+      margin-bottom: 40px;
+    }
+
+    .occasion-card, .gift-card {
+      position: relative;
+      cursor: pointer;
+    }
+
+    .occasion-card input, .gift-card input {
+      position: absolute;
+      opacity: 0;
+    }
+
+    .card-content {
+      background-color: white;
+      border: 2px solid var(--gray);
+      border-radius: var(--border-radius);
+      padding: 28px 16px;
+      text-align: center;
+      transition: var(--transition);
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .occasion-card i {
+      font-size: 2.5rem;
+      color: var(--primary);
+      margin-bottom: 16px;
+    }
+
+    .gift-icon {
+      font-size: 2.5rem;
+      margin-bottom: 16px;
+    }
+
+    .occasion-card h3, .gift-card h3 {
+      font-family: var(--font-secondary);
+      font-size: 1.1rem;
+      margin-bottom: 8px;
+    }
+
+    .gift-card .price {
+      font-weight: 600;
+      color: var(--primary);
+      margin-top: auto;
+    }
+
+    .occasion-card:hover .card-content, 
+    .gift-card:hover .card-content {
+      border-color: var(--primary);
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .occasion-card input:checked + .card-content,
+    .gift-card input:checked + .card-content {
+      border-color: var(--primary);
+      background-color: rgba(123, 90, 255, 0.05);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .form-group {
+      margin-bottom: 24px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: var(--dark);
+    }
+
+    .form-group input, 
+    .form-group textarea, 
+    .form-group select {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid var(--gray);
+      border-radius: var(--border-radius);
+      font-family: var(--font-primary);
+      font-size: 1rem;
+      transition: var(--transition);
+    }
+
+    .form-group input:focus, 
+    .form-group textarea:focus, 
+    .form-group select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(123, 90, 255, 0.2);
+    }
+
+    .form-group textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .form-navigation {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 40px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 14px 28px;
+      border-radius: 50px;
+      font-family: var(--font-secondary);
+      font-weight: 600;
+      text-decoration: none;
+      transition: var(--transition);
+      cursor: pointer;
+      border: none;
+      font-size: 1rem;
+      gap: 8px;
+    }
+
+    .btn i {
+      font-size: 0.9rem;
+    }
+
+    .btn.primary {
+      background-color: var(--primary);
+      color: white;
+      box-shadow: 0 4px 14px rgba(123, 90, 255, 0.3);
+    }
+
+    .btn.primary:hover {
+      background-color: var(--primary-dark);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(123, 90, 255, 0.4);
+    }
+
+    .btn.secondary {
+      background-color: transparent;
+      color: var(--primary);
+      border: 2px solid var(--primary);
+    }
+
+    .btn.secondary:hover {
+      background-color: rgba(123, 90, 255, 0.05);
+      transform: translateY(-2px);
+    }
+
+    .order-summary {
+      background-color: white;
+      border-radius: var(--border-radius);
+      padding: 28px;
+      margin-bottom: 32px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .order-summary h3 {
+      font-family: var(--font-secondary);
+      margin-bottom: 20px;
+      color: var(--dark);
+    }
+
+    .order-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--gray);
+    }
+
+    .order-item:last-child {
+      border-bottom: none;
+    }
+
+    .order-total {
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--primary);
+    }
+
+    #ai-preview-container {
+      background-color: white;
+      border-radius: var(--border-radius);
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: var(--shadow-sm);
+      min-height: 300px;
+      position: relative;
+    }
+
+    .generating-message {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--dark-gray);
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(123, 90, 255, 0.1);
+      border-radius: 50%;
+      border-top-color: var(--primary);
+      animation: spin 1s linear infinite;
+      margin-bottom: 1rem;
+    }
+
+    .preview-content {
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    .preview-header {
+      text-align: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--gray);
+    }
+
+    .preview-header h3 {
+      color: var(--primary);
+      font-family: var(--font-secondary);
+      margin-bottom: 0.5rem;
+    }
+
+    .preview-body {
+      line-height: 1.8;
+    }
+
+    .generated-poem {
+      font-style: italic;
+      line-height: 2;
+      text-align: center;
+      white-space: pre-line;
+    }
+
+    .preview-image {
+      max-width: 100%;
+      height: auto;
+      border-radius: var(--border-radius);
+      margin: 1.5rem auto;
+      display: block;
+      box-shadow: var(--shadow-md);
+    }
+
+    .image-container {
+      position: relative;
+      cursor: pointer;
+      transition: var(--transition);
+      border: 3px solid transparent;
+      border-radius: 8px;
+      overflow: hidden;
+      
+    }
+
+    .image-container:hover {
+      transform: scale(1.02);
+        border-color: var(--primary);
+    }
+
+    .image-container.selected {
+      border: 3px solid var(--success);
+      border-radius: var(--border-radius);
+      border-color: var(--primary);
+  box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
+    }
+
+    .image-overlay {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: var(--primary);
+  color: white;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: var(--transition);
+}
+
+.image-container.selected .image-overlay {
+  opacity: 1;
+}
+
+.preview-image {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 5px;
+}
+
+.image-placeholder {
+  width: 100%;
+  height: 200px;
+  background: #f8f9fa;
+  border: 2px dashed #dee2e6;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6c757d;
+}
+
+    .error-message {
+      text-align: center;
+      padding: 2rem;
+      color: var(--danger);
+    }
+
+    .error-message i {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+    }
+
+    .error-message h3 {
+      margin-bottom: 0.5rem;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 768px) {
+      .progress-container {
+        padding: 0 16px;
+      }
+
+      #gift-form {
+        padding: 0 16px;
+      }
+
+      .form-step h2 {
+        font-size: 1.75rem;
+      }
+
+      .occasion-options, .gift-options {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      .card-content {
+        padding: 20px 12px;
+      }
+
+      .form-navigation {
+        flex-direction: column-reverse;
+        gap: 12px;
+      }
+
+      .btn {
+        width: 100%;
+      }
+
+      #ai-preview-container {
+        padding: 1.5rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .logo {
+        font-size: 1.5rem;
+      }
+
+      nav {
+        gap: 16px;
+      }
+
+      .occasion-options, .gift-options {
+        grid-template-columns: 1fr;
+      }
+
+      .step {
+        width: 28px;
+        height: 28px;
+        font-size: 0.9rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header id="mainHeader">
+    <div class="container mx-auto px-4 py-3">
+      <a href="/" class="logo text-2xl font-bold text-purple-600">Wispwish</a>
+      <nav class="flex space-x-4">
+        <a href="http://127.0.0.1:5500/Frontend/generator.html" class="protected-link text-purple-600 hover:underline">Create Gift</a>
+        <a href="http://127.0.0.1:5500/Frontend/wishknot.html" class="protected-link text-purple-600 hover:underline">WishKnot</a>
+        <a href="http://127.0.0.1:5500/Frontend/pricing.html" class="text-purple-600 hover:underline">Pricing</a>
+        <a href="http://127.0.0.1:5500/Frontend/how-it-works.html" class="text-purple-600 hover:underline">How It Works</a>
+        <a href="http://127.0.0.1:5500/Frontend/login.html" class="auth-link text-purple-600 hover:underline" id="loginLink">Login</a>
+        <a href="#" class="auth-link text-purple-600 hover:underline" id="logoutLink" style="display: none;">Logout</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="gift-flow container mx-auto px-4 py-6">
+    <div class="progress-container mb-6">
+      <div class="progress-bar">
+        <div class="step active">1</div>
+        <div class="step">2</div>
+        <div class="step">3</div>
+        <div class="step">4</div>
+        <div class="step">5</div>
+        <div class="step">6</div>
+      </div>
+    </div>
+
+    <form id="gift-form">
+      <div class="form-step active">
+        <h2 class="text-2xl font-bold mb-4">What's the occasion?</h2>
+        <div class="occasion-options flex flex-wrap justify-center">
+          <label class="occasion-card">
+            <input type="radio" name="occasion" value="birthday" required>
+            <div class="card-content p-4 border rounded-lg hover:shadow-md">
+              <i class="fas fa-birthday-cake text-2xl mb-2"></i>
+              <h3>Birthday</h3>
+            </div>
+          </label>
+          <label class="occasion-card">
+            <input type="radio" name="occasion" value="anniversary">
+            <div class="card-content p-4 border rounded-lg hover:shadow-md">
+              <i class="fas fa-heart text-2xl mb-2"></i>
+              <h3>Anniversary</h3>
+            </div>
+          </label>
+          <label class="occasion-card">
+            <input type="radio" name="occasion" value="graduation">
+            <div class="card-content p-4 border rounded-lg hover:shadow-md">
+              <i class="fas fa-graduation-cap text-2xl mb-2"></i>
+              <h3>Graduation</h3>
+            </div>
+          </label>
+          <label class="occasion-card">
+            <input type="radio" name="occasion" value="thank-you">
+            <div class="card-content p-4 border rounded-lg hover:shadow-md">
+              <i class="fas fa-hands-helping text-2xl mb-2"></i>
+              <h3>Thank You</h3>
+            </div>
+          </label>
+        </div>
+        <div class="form-navigation mt-4">
+          <button type="button" class="btn primary next-step">Continue <i class="fas fa-arrow-right"></i></button>
+        </div>
+      </div>
+
+      <div class="form-step">
+        <h2 class="text-2xl font-bold mb-4">Choose Your Gift</h2>
+        <div class="gift-options flex flex-wrap justify-center">
+          <label class="gift-card">
+            <input type="radio" name="gift-type" value="poem" required>
+            <div class="card-content p-4 border rounded-lg hover:shadow-md">
+              <div class="gift-icon text-2xl mb-2">📝</div>
+              <h3>AI Poem</h3>
+              <p class="price">$8 AUD</p>
+            </div>
+          </label>
+          <label class="gift-card">
+            <input type="radio" name="gift-type" value="voice">
+            <div class="card-content p-4 border rounded-lg hover:shadow-md">
+              <div class="gift-icon text-2xl mb-2">🎤</div>
+              <h3>Voice Message</h3>
+              <p class="price">$12 AUD</p>
+            </div>
+          </label>
+          <label class="gift-card">
+            <input type="radio" name="gift-type" value="image">
+            <div class="card-content p-4 border rounded-lg hover:shadow-md">
+              <div class="gift-icon text-2xl mb-2">🎨</div>
+              <h3>Custom Artwork</h3>
+              <p class="price">$15 AUD</p>
+            </div>
+          </label>
+          <label class="gift-card">
+            <input type="radio" name="gift-type" value="song">
+            <div class="card-content p-4 border rounded-lg hover:shadow-md">
+              <div class="gift-icon text-2xl mb-2">🎵</div>
+              <h3>Personalized Song</h3>
+              <p class="price">$25 AUD</p>
+            </div>
+          </label>
+        </div>
+        <div class="form-navigation mt-4">
+          <button type="button" class="btn secondary back-step"><i class="fas fa-arrow-left"></i> Back</button>
+          <button type="button" class="btn primary next-step">Continue <i class="fas fa-arrow-right"></i></button>
+        </div>
+      </div>
+
+      <div class="form-step">
+        <h2 class="text-2xl font-bold mb-4">Make It Personal</h2>
+        <div class="form-group">
+          <label for="sender-name">Your Name*</label>
+          <input type="text" id="sender-name" name="sender-name" required placeholder="e.g. Ahmed">
+        </div>
+        <div class="form-group">
+          <label for="recipient-name">Recipient's Name*</label>
+          <input type="text" id="recipient-name" name="recipient-name" required placeholder="e.g. Sarah">
+        </div>
+        <div class="form-group">
+          <label for="relationship">Your Relationship*</label>
+          <select id="relationship" name="relationship" required>
+            <option value="" disabled selected>Select relationship</option>
+            <option value="partner">Partner</option>
+            <option value="parent">Parent</option>
+            <option value="friend">Friend</option>
+            <option value="sibling">Sibling</option>
+            <option value="colleague">Colleague</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="special-details">Special Details (Optional)</label>
+          <textarea id="special-details" name="special-details" placeholder="Share any special memories, inside jokes, or things you love about them..."></textarea>
+        </div>
+        <div class="form-group" id="genre-field" style="display: none;">
+          <label for="genre">Music Genre (for Songs)*</label>
+          <select id="genre" name="genre">
+            <option value="" disabled selected>Select genre</option>
+            <option value="pop">Pop</option>
+            <option value="rock">Rock</option>
+            <option value="jazz">Jazz</option>
+            <option value="classical">Classical</option>
+            <option value="electronic">Electronic</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="tone">Preferred Tone*</label>
+          <select id="tone" name="tone" required>
+            <option value="" disabled selected>Select tone</option>
+            <option value="romantic">Romantic</option>
+            <option value="funny">Funny</option>
+            <option value="heartfelt">Heartfelt</option>
+            <option value="inspirational">Inspirational</option>
+          </select>
+        </div>
+        <div class="form-group" id="task-id-field" style="display: none;">
+          <label for="task-id">Suno AI Task ID (Optional, for testing)</label>
+          <input type="text" id="task-id" name="task-id" placeholder="Enter task ID to check status">
+        </div>
+        <div class="form-navigation mt-4">
+          <button type="button" class="btn secondary back-step"><i class="fas fa-arrow-left"></i> Back</button>
+          <button type="button" class="btn primary next-step">Continue <i class="fas fa-arrow-right"></i></button>
+        </div>
+      </div>
+
+      <div class="form-step">
+        <h2 class="text-2xl font-bold mb-4">Delivery Options</h2>
+        <div class="form-group">
+          <label for="delivery-method">Delivery Method*</label>
+          <select id="delivery-method" name="delivery-method" required>
+            <option value="" disabled selected>Select delivery method</option>
+            <option value="email">Email (Instant)</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="sms">Text Message</option>
+            <option value="print">Printable PDF</option>
+          </select>
+        </div>
+        <div class="form-group" id="email-field" style="display: none;">
+          <label for="recipient-email">Recipient's Email*</label>
+          <input type="email" id="recipient-email" name="recipient-email" placeholder="recipient@email.com">
+        </div>
+        <div class="form-group" id="phone-field" style="display: none;">
+          <label for="recipient-phone">Recipient's Phone*</label>
+          <input type="tel" id="recipient-phone" name="recipient-phone" placeholder="+1 234 567 8900">
+        </div>
+        <div class="form-group">
+          <label for="delivery-date">When should we deliver?*</label>
+          <input type="datetime-local" id="delivery-date" name="delivery-date" required>
+        </div>
+        <div class="form-navigation mt-4">
+          <button type="button" class="btn secondary back-step"><i class="fas fa-arrow-left"></i> Back</button>
+          <button type="button" class="btn primary next-step">Preview Gift <i class="fas fa-magic"></i></button>
+        </div>
+      </div>
+
+      <div class="form-step">
+        <h2 class="text-2xl font-bold mb-4">Preview Your Gift</h2>
+        <div id="ai-preview-container">
+          <div class="generating-message">
+            <div class="spinner"></div>
+            <p>Generating your special gift...</p>
+          </div>
+        </div>
+        <div class="form-navigation mt-4">
+          <button type="button" id="regenerate-btn" class="btn secondary"><i class="fas fa-sync-alt"></i> Regenerate</button>
+          <button type="button" id="retry-task-btn" class="btn secondary" style="display: none;"><i class="fas fa-sync-alt"></i> Retry Task</button>
+          <button type="button" class="btn primary next-step">Continue to Payment <i class="fas fa-arrow-right"></i></button>
+        </div>
+      </div>
+
+      <div class="form-step">
+        <h2 class="text-2xl font-bold mb-4">Complete Your Gift</h2>
+        <div class="order-summary">
+          <h3>Your Order Summary</h3>
+          <div class="order-item">
+            <span id="order-gift-type">AI Poem</span>
+            <span id="order-gift-price">$8 AUD</span>
+          </div>
+          <div class="order-item">
+            <span>Delivery</span>
+            <span id="order-delivery-method">Email</span>
+          </div>
+          <div class="order-item order-total">
+            <span>Total</span>
+            <span id="order-total">$8 AUD</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="email">Your Email*</label>
+          <input type="email" id="email" name="email" required placeholder="your@email.com">
+        </div>
+        <div id="payment-form">
+          <div class="form-group">
+            <label>Payment Details</label>
+            <div class="bg-gray-100 p-5 rounded-lg text-center text-gray-600">
+              <i class="fas fa-credit-card text-xl mb-2"></i>
+              <p>Click below to proceed to secure payment</p>
+            </div>
+          </div>
+        </div>
+        <div class="form-navigation mt-4">
+          <button type="button" class="btn secondary back-step"><i class="fas fa-arrow-left"></i> Back</button>
+          <button type="button" id="pay-now-btn" class="btn primary">Pay Now</button>
+        </div>
+      </div>
+    </form>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script>
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+
+    // Login/Logout Toggle
+    const loginLink = document.getElementById('loginLink');
+    const logoutLink = document.getElementById('logoutLink');
+    if (token) {
+      loginLink.style.display = 'none';
+      logoutLink.style.display = 'inline-block';
+    } else {
+      loginLink.style.display = 'inline-block';
+      logoutLink.style.display = 'none';
+    }
+
+    logoutLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      localStorage.removeItem('token');
+      sessionStorage.removeItem('token');
+      localStorage.removeItem('userEmail');
+      window.location.href = 'http://127.0.0.1:5500/Frontend/login.html';
+    });
+
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', 'GTM-XXXXXX');
+
+    function getPrice(giftType) {
+      switch (giftType) {
+        case 'voice': return 12;
+        case 'image': return 15;
+        case 'song': return 25;
+        default: return 8;
+      }
+    }
+
+    async function generateAIPreview() {
+      const aiPreviewContainer = document.getElementById('ai-preview-container');
+      aiPreviewContainer.innerHTML = `
+        <div class="generating-message">
+          <div class="spinner"></div>
+          <p>Generating your special gift...</p>
+        </div>
+      `;
+
+      const formData = {
+        occasion: document.querySelector('input[name="occasion"]:checked')?.value || 'special occasion',
+        giftType: document.querySelector('input[name="gift-type"]:checked')?.value || 'poem',
+        senderName: document.getElementById('sender-name').value || 'Someone special',
+        recipientName: document.getElementById('recipient-name').value || 'Recipient',
+        relationship: document.getElementById('relationship').value || 'friend',
+        tone: document.getElementById('tone').value || 'heartfelt',
+        memories: document.getElementById('special-details').value.split('.').filter(m => m.trim()),
+        senderMessage: document.getElementById('special-details').value || '',
+        deliveryMethod: document.getElementById('delivery-method').value || 'email',
+        deliveryEmail: document.getElementById('recipient-email').value || '',
+        buyerEmail: document.getElementById('email')?.value || localStorage.getItem('userEmail') || 'user@example.com',
+        scheduledDate: document.getElementById('delivery-date').value || new Date().toISOString(),
+        price: getPrice(document.querySelector('input[name="gift-type"]:checked')?.value),
+        genre: document.getElementById('genre')?.value || 'pop',
+        taskId: document.getElementById('task-id')?.value || '',
+      };
+
+      try {
+        let response;
+        let giftId;
+        let generatedContent;
+        if (formData.giftType === 'image') {
+          response = await axios.post('http://localhost:5001/api/artwork/generate', {
+            gift: {
+              giftType: formData.giftType,
+              recipientName: formData.recipientName,
+              senderName: formData.senderName,
+              tone: formData.tone,
+              memories: formData.memories,
+              deliveryEmail: formData.deliveryEmail,
+              deliveryMethod: formData.deliveryMethod,
+              senderMessage: formData.senderMessage,
+              occasion: formData.occasion,
+              relationship: formData.relationship,
+              scheduledDate: formData.scheduledDate,
+            },
+            buyerEmail: formData.buyerEmail,
+          }, {
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token || ''}` },
+          });
+          generatedContent = response.data.images;
+          giftId = response.data.giftId;
+          gtag('event', 'gift_created', { event_category: 'Artwork', event_label: 'Generated' });
+        } else if (formData.giftType === 'song' && formData.taskId) {
+          response = await axios.get(`http://localhost:5001/api/song/task/${formData.taskId}`, {
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token || ''}` },
+          });
+          generatedContent = response.data.generatedContent || response.data;
+          giftId = response.data.giftId || 'unknown';
+          gtag('event', 'gift_task_checked', { event_category: 'Song', event_label: 'Task Checked' });
+        } else if (formData.giftType === 'song') {
+          response = await axios.post('http://localhost:5001/api/song/generate', formData, {
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token || ''}` },
+          });
+          generatedContent = response.data.generatedContent || response.data;
+          giftId = response.data.giftId || 'unknown';
+          gtag('event', 'gift_created', { event_category: 'Song', event_label: 'Generated' });
+        } else {
+          response = await axios.post('http://localhost:5001/api/gift/generate', formData, {
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token || ''}` },
+          });
+          generatedContent = response.data.generatedContent || response.data.text || response.data;
+          giftId = response.data.giftId || 'unknown';
+          gtag('event', 'gift_created', { event_category: formData.giftType, event_label: 'Generated' });
+        }
+        window.giftAudioAvailable = formData.giftType === 'song' && generatedContent.audio ? true : false;
+        window.currentTaskId = response.data.taskId || formData.taskId;
+        displayAIPreview({ generatedContent, giftId, warning: response.data.warning, taskId: window.currentTaskId }, formData);
+      } catch (error) {
+        console.error('🚨 Gift generation error:', error);
+      console.error('🚨 Error response:', error.response?.data);
+      console.error('🚨 Error status:', error.response?.status);
+      
+      // ✅ Specific handling for auth errors
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        alert('Authentication failed. Please login again.');
+        // Redirect to login
+        window.location.href = 'http://127.0.0.1:5500/Frontend/login.html';
+        return;
+      }
+      
+      showAIError(error, formData);
+      }
+    }
+
+    async function retryTask(taskId) {
+      const aiPreviewContainer = document.getElementById('ai-preview-container');
+      aiPreviewContainer.innerHTML = `
+        <div class="generating-message">
+          <div class="spinner"></div>
+          <p>Checking task status...</p>
+        </div>
+      `;
+
+      const formData = { giftType: 'song', taskId };
+
+      try {
+        const response = await axios.get(`http://localhost:5001/api/song/task/${taskId}`, {
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token || ''}` },
+        });
+        console.log('Song task API response:', response.data);
+        const generatedContent = response.data.generatedContent || response.data;
+        const giftId = response.data.giftId || 'unknown';
+        window.giftAudioAvailable = generatedContent.audio ? true : false;
+        window.currentTaskId = taskId;
+        displayAIPreview({ generatedContent, giftId, warning: response.data.warning, taskId }, formData);
+        gtag('event', 'gift_task_checked', { event_category: 'Song', event_label: 'Task Retried' });
+      } catch (error) {
+        console.error('Retry task error:', JSON.stringify(error.response?.data || error.message, null, 2));
+        showAIError(error, formData);
+      }
+    }
+
+    function displayAIPreview(result, formData) {
+      let previewHTML = '';
+      const { generatedContent, giftId, warning, taskId } = result;
+      window.giftId = giftId;
+      window.selectedImageId = null;
+
+      let contentToDisplay = '';
+      let audioContent = '';
+      console.log('Generated content:', generatedContent);
+      console.log('Gift type:', formData.giftType);
+      console.log('Warning:', warning);
+      console.log('Task ID:', taskId);
+
+      if (formData.giftType === 'poem' || formData.giftType === 'letter' || formData.giftType === 'shortStory' || formData.giftType === 'wishknot') {
+        contentToDisplay = typeof generatedContent === 'string' ? generatedContent : generatedContent?.text || 'Error: Invalid content received';
+      } else if (formData.giftType === 'voice' || formData.giftType === 'song') {
+        contentToDisplay = generatedContent?.text || 'Error: No text content received';
+        audioContent = generatedContent?.audio || '';
+      } else if (formData.giftType === 'image') {
+        contentToDisplay = '';
+      } else {
+        contentToDisplay = 'Error: Unsupported gift type';
+      }
+
+      switch (formData.giftType) {
+        case 'poem':
+        case 'letter':
+        case 'shortStory':
+        case 'wishknot':
+          previewHTML = `
+            <div class="preview-content">
+              <div class="preview-header">
+                <h3>Your ${formData.giftType} for ${formData.recipientName}</h3>
+                <p>${formData.tone} tone for ${formData.occasion}</p>
+              </div>
+              <div class="preview-body">
+                <div class="generated-poem">${contentToDisplay.replace(/\n/g, '<br>')}</div>
+              </div>
+            </div>
+          `;
+          break;
+        case 'voice':
+        case 'song':
+          previewHTML = `
+            <div class="preview-content">
+              <div class="preview-header">
+                <h3>Your ${formData.giftType === 'voice' ? 'Voice Message' : 'Personalized Song'} for ${formData.recipientName}</h3>
+                <p>${formData.tone} tone for ${formData.occasion}</p>
+                ${warning ? `<p class="warning-message text-red-500">Warning: ${warning}</p>` : ''}
+                ${taskId ? `<p>Task ID: ${taskId} (Save this for support)</p>` : ''}
+              </div>
+              <div class="preview-body">
+                <div class="generated-poem">${contentToDisplay.replace(/\n/g, '<br>')}</div>
+                ${audioContent ? `
+                  <audio controls style="width:100%; margin:20px 0;">
+                    <source src="data:audio/mpeg;base64,${audioContent}" type="audio/mpeg">
+                    Your browser does not support the audio element.
+                  </audio>
+                ` : '<p class="text-red-500">Audio not available. Please try regenerating or contact support with the Task ID.</p>'}
+              </div>
+            </div>
+          `;
+          break;
+        case 'image':
+          previewHTML = `
+            <div class="preview-content">
+              <div class="preview-header">
+                <h3>Your Custom Artwork for ${formData.recipientName}</h3>
+                <p>${formData.tone} tone for ${formData.occasion}</p>
+              </div>
+              <div class="preview-body">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                  ${generatedContent[0] ? `
+                    <div class="image-container" id="image1" data-image-id="${generatedContent[0]._id}">
+                      <img src="${generatedContent[0].url}" alt="Artwork 1" class="preview-image">
+                      <div class="image-overlay">
+                        <i class="fas fa-check-circle"></i>
+                      </div>
+                    </div>
+                  ` : '<div class="image-placeholder">Loading...</div>'}
+                  ${generatedContent[1] ? `
+                    <div class="image-container" id="image2" data-image-id="${generatedContent[1]._id}">
+                      <img src="${generatedContent[1].url}" alt="Artwork 2" class="preview-image">
+                      <div class="image-overlay">
+                        <i class="fas fa-check-circle"></i>
+                      </div>
+                    </div>
+                  ` : '<div class="image-placeholder">Loading...</div>'}
+                </div>
+                <p class="text-center mt-5">Click an image to select it for your gift</p>
+              </div>
+            </div>
+          `;
+          break;
+        default:
+          previewHTML = `
+            <div class="preview-content">
+              <div class="preview-body">
+                <p>Not implemented yet for ${formData.giftType}</p>
+              </div>
+            </div>
+          `;
+      }
+
+      document.getElementById('ai-preview-container').innerHTML = previewHTML;
+      if (formData.giftType === 'image' && generatedContent[0] && generatedContent[1]) {
+        document.getElementById('image1')?.addEventListener('click', () => selectImage(generatedContent[0]._id, 'image1', 'image2'));
+        document.getElementById('image2')?.addEventListener('click', () => selectImage(generatedContent[1]._id, 'image2', 'image1'));
+      }
+
+      if (formData.giftType === 'song' && taskId && !audioContent) {
+        document.getElementById('retry-task-btn').style.display = 'inline-block';
+        document.getElementById('retry-task-btn').onclick = () => retryTask(taskId);
+      } else {
+        document.getElementById('retry-task-btn').style.display = 'none';
+      }
+    }
+
+    async function selectImage(imageId, selectedId, unselectedId) {
+      try {
+        console.log('Selecting image:', imageId);
+        const response = await axios.post('http://localhost:5001/api/artwork/select', {
+          imageId,
+          giftId: window.giftId,
+        }, {
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token || ''}` },
+        });
+
+        document.getElementById(selectedId).classList.add('selected');
+        document.getElementById(unselectedId)?.classList.remove('selected');
+        window.selectedImageId = imageId;
+        console.log('Image selected successfully:', imageId, 'Gift ID:', window.giftId);
+        gtag('event', 'artwork_selected', { event_category: 'Artwork', event_label: 'Selected' });
+      } catch (error) {
+        console.error('Error selecting image:', JSON.stringify(error.response?.data || error.message, null, 2));
+        showAIError(error, { giftType: 'image' });
+      }
+    }
+
+    function showAIError(error, formData) {
+      const errorMessage = error.response?.data?.message || error.message || 'Please try again later';
+      const taskId = error.response?.data?.taskId || formData.taskId || window.currentTaskId;
+      document.getElementById('ai-preview-container').innerHTML = `
+        <div class="error-message">
+          <i class="fas fa-exclamation-triangle"></i>
+          <h3>Couldn't generate your gift</h3>
+          <p>${errorMessage}</p>
+          ${taskId ? `<p>Task ID: ${taskId} (Save this for support)</p>` : ''}
+          <button class="btn secondary" id="retry-btn">Try Again <i class="fas fa-sync-alt"></i></button>
+          ${taskId ? `<button class="btn secondary" id="retry-task-btn">Retry Task <i class="fas fa-sync-alt"></i></button>` : ''}
+        </div>
+      `;
+      document.getElementById('retry-btn').addEventListener('click', () => {
+        if (formData.giftType === 'song' && !confirm('Regenerating a song will consume additional credits (approx. 10-12). Continue?')) {
+          return;
+        }
+        generateAIPreview();
+      });
+      if (taskId) {
+        document.getElementById('retry-task-btn').addEventListener('click', () => retryTask(taskId));
+      }
+    }
+
+    function updateOrderSummary() {
+      const giftType = document.querySelector('input[name="gift-type"]:checked')?.value || 'poem';
+      const deliveryMethod = document.getElementById('delivery-method').value || 'email';
+      const formattedGiftType = giftType.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+      const formattedDelivery = deliveryMethod.charAt(0).toUpperCase() + deliveryMethod.slice(1);
+      const price = getPrice(giftType);
+
+      document.getElementById('order-gift-type').textContent = formattedGiftType;
+      document.getElementById('order-gift-price').textContent = `$${price} AUD`;
+      document.getElementById('order-delivery-method').textContent = formattedDelivery;
+      document.getElementById('order-total').textContent = `$${price} AUD`;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const form = document.getElementById('gift-form');
+      const steps = Array.from(document.querySelectorAll('.form-step'));
+      const nextButtons = Array.from(document.querySelectorAll('.next-step'));
+      const backButtons = Array.from(document.querySelectorAll('.back-step'));
+      const progressSteps = Array.from(document.querySelectorAll('.step'));
+      const progressBar = document.querySelector('.progress-bar');
+      const regenerateBtn = document.getElementById('regenerate-btn');
+      const deliveryMethod = document.getElementById('delivery-method');
+      const emailField = document.getElementById('email-field');
+      const phoneField = document.getElementById('phone-field');
+      const payNowBtn = document.getElementById('pay-now-btn');
+      const genreField = document.getElementById('genre-field');
+      const taskIdField = document.getElementById('task-id-field');
+
+      let currentStep = 0;
+
+      function updateProgress() {
+        progressSteps.forEach((step, index) => {
+          step.classList.toggle('active', index <= currentStep);
+        });
+        const progressPercent = (currentStep / (steps.length - 1)) * 100;
+        progressBar.style.setProperty('--progress', `${progressPercent}%`);
+      }
+
+      function showStep(stepIndex) {
+        steps.forEach((step, index) => {
+          step.classList.toggle('active', index === stepIndex);
+        });
+        currentStep = stepIndex;
+        updateProgress();
+        if (currentStep === 2) {
+          const giftType = document.querySelector('input[name="gift-type"]:checked')?.value;
+          genreField.style.display = giftType === 'song' ? 'block' : 'none';
+          taskIdField.style.display = giftType === 'song' ? 'block' : 'none';
+          document.getElementById('genre').required = giftType === 'song';
+        }
+        if (currentStep === 4) generateAIPreview();
+        if (currentStep === 5) updateOrderSummary();
+      }
+
+      deliveryMethod.addEventListener('change', function() {
+        emailField.style.display = this.value === 'email' ? 'block' : 'none';
+        phoneField.style.display = (this.value === 'whatsapp' || this.value === 'sms') ? 'block' : 'none';
+        document.getElementById('recipient-email').required = this.value === 'email';
+        document.getElementById('recipient-phone').required = this.value === 'whatsapp' || this.value === 'sms';
+      });
+
+      function onGiftTypeChange() {
+        const selectedType = document.querySelector('input[name="gift-type"]:checked')?.value || 'poem';
+        genreField.style.display = selectedType === 'song' ? 'block' : 'none';
+        taskIdField.style.display = selectedType === 'song' ? 'block' : 'none';
+        document.getElementById('genre').required = selectedType === 'song';
+        updateOrderSummary();
+      }
+
+      document.querySelectorAll('input[name="gift-type"]').forEach(input => {
+        input.addEventListener('change', onGiftTypeChange);
+      });
+
+      regenerateBtn.addEventListener('click', function() {
+        const giftType = document.querySelector('input[name="gift-type"]:checked')?.value;
+        if (giftType === 'song' && !confirm('Regenerating a song will consume additional credits (approx. 10-12). Continue?')) {
+          return;
+        }
+        generateAIPreview();
+      });
+
+      payNowBtn.addEventListener('click', async function() {
+        try {
+          const giftType = document.querySelector('input[name="gift-type"]:checked')?.value;
+          const recipientName = document.getElementById('recipient-name').value;
+          const email = document.getElementById('email').value;
+          const price = parseFloat(document.getElementById('order-gift-price').textContent.replace('$', '').replace(' AUD', ''));
+          const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+          let userId = 'guest';
+
+          if (token) {
+            try {
+              const decoded = JSON.parse(atob(token.split('.')[1]));
+              userId = decoded.id;
+            } catch (e) {
+              console.error('Invalid token:', e);
+              alert('Please login again.');
+              return;
+            }
+          } else {
+      alert('Please login to proceed with payment.');
+      return;
+    }
+
+    // ✅ Debug authentication
+    console.log('🔍 Checking authentication:');
+    console.log('Token exists:', !!token);
+    console.log('User ID:', userId);
+    console.log('Gift ID:', window.giftId);
+    console.log('Gift Type:', giftType);
+    
+    // ✅ Additional validation for voice gifts
+    if (giftType === 'voice' && !window.giftId) {
+      alert('Voice gift generation failed. Please try generating again.');
+      return;
+    }
+
+    if (!email) {
+      alert('Please enter your email.');
+      return;
+    }
+          if (giftType === 'image' && !window.selectedImageId) {
+            alert('Please select an image before proceeding to payment.');
+            return;
+          }
+          if (!window.giftId && giftType !== 'image') {
+            alert('Please generate your gift content before proceeding to payment.');
+            return;
+          }
+
+          payNowBtn.disabled = true;
+          payNowBtn.textContent = 'Processing...';
+
+          const response = await axios.post('http://localhost:5001/api/payment/create-checkout-session', {
+            giftId: window.giftId,
+            price,
+            giftType,
+            recipientName,
+            email,
+            userId,
+          }, {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token || ''}`,
+            },
+          });
+
+          if (response.data.checkoutUrl) {
+            localStorage.setItem('userEmail', email);
+            window.location.href = response.data.checkoutUrl;
+          } else {
+            throw new Error('No checkout URL received');
+          }
+        } catch (error) {
+          payNowBtn.disabled = false;
+          payNowBtn.textContent = 'Pay Now';
+          console.error('Payment error:', error);
+          alert(`Payment Error: ${error.response?.data?.message || error.message}`);
+        }
+      });
+
+      nextButtons.forEach(button => {
+        button.addEventListener('click', function() {
+          const currentStepForm = steps[currentStep];
+          const inputs = currentStepForm.querySelectorAll('[required]');
+          let isValid = true;
+
+          inputs.forEach(input => {
+            if (!input.value) {
+              input.style.borderColor = '#dc3545';
+              isValid = false;
+            } else {
+              input.style.borderColor = '#ccc';
+            }
+          });
+
+          if (currentStep === 0 && !document.querySelector('input[name="occasion"]:checked')) {
+            isValid = false;
+            alert('Please select an occasion');
+          }
+
+          if (currentStep === 1 && !document.querySelector('input[name="gift-type"]:checked')) {
+            isValid = false;
+            alert('Please select a gift type');
+          }
+
+          if (currentStep === 4 && document.querySelector('input[name="gift-type"]:checked')?.value === 'image' && !window.selectedImageId) {
+            isValid = false;
+            alert('Please select an image before proceeding to payment');
+          }
+
+          if (currentStep === 4 && document.querySelector('input[name="gift-type"]:checked')?.value === 'song' && !window.giftAudioAvailable) {
+            isValid = false;
+            alert('Song audio is not available. Please retry the task or contact support with the Task ID.');
+          }
+
+          if (isValid) {
+            showStep(currentStep + 1);
+          }
+        });
+      });
+
+      backButtons.forEach(button => {
+        button.addEventListener('click', function() {
+          showStep(currentStep - 1);
+        });
+      });
+
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+      });
+
+      // Payment Success Handling
+      const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('session_id') && urlParams.get('gift_id')) {
+  const sessionId = urlParams.get('session_id');
+  const giftId = urlParams.get('gift_id');
+
+  console.log('🔄 Payment success detected:', { sessionId, giftId });
+
+  // Success Popup
+  const successDiv = document.createElement('div');
+  successDiv.innerHTML = `
+    <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                background: rgba(0,0,0,0.8); display: flex; align-items: center; 
+                justify-content: center; z-index: 9999;">
+      <div style="background: white; padding: 30px; border-radius: 10px; 
+                  text-align: center; max-width: 400px;">
+        <h3>🎉 Payment Successful!</h3>
+        <p>Your payment has been processed successfully.</p>
+        <p>We are preparing your gift and it will be sent shortly.</p>
+        <button id="okBtn" 
+          style="margin-top: 20px; padding: 10px 20px; border: none; 
+                 background: #7B5AFF; color: white; border-radius: 5px; cursor: pointer;">
+          OK
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(successDiv);
+
+  // OK button click → Go Home
+  document.getElementById('okBtn').addEventListener('click', () => {
+    window.location.href = '/'; // 👈 home page redirect
+  });
+}
+
+progressBar.style.setProperty('--progress', '20%');
+onGiftTypeChange();
+
+
+      progressBar.style.setProperty('--progress', '20%');
+      onGiftTypeChange();
+    });
+  </script>
+</body>
+</html>

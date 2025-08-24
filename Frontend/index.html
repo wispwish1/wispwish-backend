@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Create and share AI-generated digital gifts with Wispwish">
+  <title>Wispwish - AI Digital Gifts</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Montserrat:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body> 
+  <!-- Modern Header -->
+  <header id="mainHeader">
+    <div class="container">
+      <a href="/" class="logo">Wispwish</a>
+      <nav>
+        <a href="http://127.0.0.1:5500/Frontend/generator.html" class="protected-link">Create Gift</a>
+        <a href="http://127.0.0.1:5500/Frontend/wishknot.html" class="protected-link">WishKnot</a>
+        <a href="http://127.0.0.1:5500/Frontend/pricing.html">Pricing</a>
+        <a href="http://127.0.0.1:5500/Frontend/how-it-works.html">How It Works</a>
+        <!-- <a href="/login.html" class="auth-link">Login</a> -->
+        <a href="http://127.0.0.1:5500/Frontend/login.html" class="auth-link" id="loginLink">Login</a>
+        <a href="#" class="auth-link" id="logoutLink" style="display: none;">Logout</a>
+        
+      </nav>
+      <button class="mobile-menu-btn">
+        <i class="fas fa-bars"></i>
+      </button>
+    </div>
+  </header> 
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container">
+      <h1>Gifts born from the heart,<br>delivered in seconds</h1>
+      <p class="subhead">You bring the feeling. We turn it into a gift.</p>
+      <div class="cta-buttons">
+        <a href="http://127.0.0.1:5500/Frontend/generator.html" class="btn primary protected-link">Create Your Gift</a>
+        <a href="http://127.0.0.1:5500/Frontend/how-it-works.html" class="btn secondary">See How It Works</a>
+      </div>
+    </div>
+  </section> 
+
+  <!-- Trust Badges -->
+  <section class="trust-badges">
+    <div class="container">
+      <div class="badge">
+        <i class="fas fa-lock"></i>
+        <p>SSL Secured</p>
+      </div>
+      <div class="badge">
+        <i class="fas fa-bolt"></i>
+        <p>Instant Delivery</p>
+      </div>
+      <div class="badge">
+        <i class="fas fa-heart"></i>
+        <p>Made with Love</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Testimonials -->
+  <section class="testimonials">
+    <div class="container">
+      <h2>What People Are Saying</h2>
+      <div class="testimonial-carousel">
+        <div class="testimonial-card">
+          <div class="avatar">👩🏼</div>
+          <blockquote>"The poem Wispwish created for my mum made her cry happy tears. It felt like it came straight from my heart."</blockquote>
+          <p class="author">— Sophie T., Melbourne</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script src="main.js"></script>
+  <script src="carousel.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('Main page loaded successfully without redirect');
+        const protectedLinks = document.querySelectorAll('.protected-link');
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    
+        // 🔁 Login / Logout Toggle
+        const loginLink = document.getElementById('loginLink');
+        const logoutLink = document.getElementById('logoutLink');
+    
+        if (token) {
+          loginLink.style.display = 'none';
+          logoutLink.style.display = 'inline-block';
+        } else {
+          loginLink.style.display = 'inline-block';
+          logoutLink.style.display = 'none';
+        }
+    
+        // 🔒 Logout handler
+        logoutLink.addEventListener('click', (e) => {
+          e.preventDefault();
+          localStorage.removeItem('token');
+          sessionStorage.removeItem('token');
+          window.location.href = 'http://127.0.0.1:5500/Frontend/login.html'; // or just reload: window.location.reload();
+        });
+    
+        // 🔐 Auth check for protected links
+        protectedLinks.forEach(link => {
+          link.addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+            
+              if (token) {
+                window.location.href = link.href;
+              } else {
+                window.location.href = `http://127.0.0.1:5500/Frontend/login.html?redirect=${encodeURIComponent(link.pathname)}`;
+              }
+            } catch (error) {
+              console.error('Auth check error:', error);
+              window.location.href = `http://127.0.0.1:5500/Frontend/login.html?redirect=${encodeURIComponent(link.pathname)}`;
+            }
+          });
+        });
+      });
+  </script>
+</body>
+</html>

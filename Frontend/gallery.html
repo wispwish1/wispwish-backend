@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gallery - Wispwish</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #7B5AFF;
+      --primary-dark: #6343F5;
+      --primary-light: #F0E9FF;
+      --secondary: #FF85A2;
+      --dark: #1A1A2E;
+      --light: #F8F9FF;
+      --gray: #E5E7EB;
+      --dark-gray: #6B7280;
+      --success: #10B981;
+      --warning: #F59E0B;
+      --danger: #EF4444;
+      --font-primary: 'Poppins', sans-serif;
+      --font-secondary: 'Montserrat', sans-serif;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      --border-radius: 12px;
+      --border-radius-lg: 20px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-primary);
+      color: var(--dark);
+      background-color: var(--light);
+      line-height: 1.6;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Header Styles */
+    #mainHeader {
+      position: sticky;
+      top: 0;
+      left: 0;
+      width: 100%;
+      z-index: 1000;
+      background-color: rgba(255, 255, 255, 0.98);
+      backdrop-filter: blur(8px);
+      box-shadow: var(--shadow-sm);
+      padding: 16px 0;
+    }
+
+    #mainHeader .container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      font-family: var(--font-secondary);
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--primary);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo::before {
+      content: "✨";
+      font-size: 1.5rem;
+    }
+
+    nav {
+      display: flex;
+      gap: 28px;
+    }
+
+    nav a {
+      font-family: var(--font-secondary);
+      font-weight: 500;
+      color: var(--dark);
+      text-decoration: none;
+      transition: var(--transition);
+      position: relative;
+      font-size: 0.95rem;
+    }
+
+    nav a:hover {
+      color: var(--primary);
+    }
+
+    nav a.active {
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    nav a.active::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background-color: var(--primary);
+    }
+
+    .mobile-menu-btn {
+      display: none;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      color: var(--dark);
+      cursor: pointer;
+    }
+
+    /* Gallery Hero */
+    .gallery-hero {
+      padding: 140px 0 80px;
+      text-align: center;
+      background: linear-gradient(135deg, #F8F9FF 0%, #F0E9FF 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .gallery-hero::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -20%;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(123, 90, 255, 0.1) 0%, rgba(123, 90, 255, 0) 70%);
+      z-index: 0;
+    }
+
+    .gallery-hero h1 {
+      font-size: 3.2rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .gallery-hero p {
+      font-size: 1.3rem;
+      color: var(--dark-gray);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* Gallery Content */
+    .gallery-content {
+      padding: 80px 0;
+    }
+
+    .filter-controls {
+      margin-bottom: 40px;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+
+    .filter-btn {
+      padding: 10px 20px;
+      border-radius: 50px;
+      background: white;
+      border: 2px solid var(--gray);
+      font-family: var(--font-primary);
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .filter-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .filter-btn.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+      box-shadow: 0 4px 12px rgba(123, 90, 255, 0.3);
+    }
+
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 30px;
+    }
+
+    .gift-card {
+      background: white;
+      border-radius: var(--border-radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      transition: var(--transition);
+      position: relative;
+    }
+
+    .gift-card:hover {
+      transform: translateY(-10px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .gift-preview {
+      height: 250px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Poem Card */
+    .poem-card .gift-preview {
+      background: linear-gradient(135deg, #FFF5F5 0%, #FFF0F5 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 30px;
+      border-bottom: 1px solid rgba(255, 141, 168, 0.2);
+    }
+
+    .poem-card h3 {
+      font-family: var(--font-secondary);
+      color: var(--dark);
+      margin-bottom: 15px;
+      font-size: 1.3rem;
+    }
+
+    .poem-card p {
+      font-style: italic;
+      color: var(--dark-gray);
+      margin-bottom: 20px;
+    }
+
+    /* Voice Message Card */
+    .voice-card .gift-preview {
+      background: linear-gradient(135deg, #F0F5FF 0%, #F0F9FF 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-bottom: 1px solid rgba(123, 90, 255, 0.2);
+    }
+
+    .voice-player {
+      width: 120px;
+      height: 120px;
+      background: white;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: var(--shadow-md);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .voice-player:hover {
+      transform: scale(1.05);
+    }
+
+    .voice-player i {
+      font-size: 2rem;
+      color: var(--primary);
+    }
+
+    /* Image Card */
+    .image-card .gift-preview {
+      background: #f5f5f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .image-preview {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.5s ease;
+    }
+
+    .image-card:hover .image-preview {
+      transform: scale(1.05);
+    }
+
+    /* WishKnot Card */
+    .wishknot-card .gift-preview {
+      background: linear-gradient(135deg, #F5F0FF 0%, #F0F5FF 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-bottom: 1px solid rgba(123, 90, 255, 0.2);
+    }
+
+    .wishknot-preview {
+      width: 120px;
+      height: 120px;
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .wishknot-preview .knot {
+      width: 80px;
+      height: 80px;
+      background: var(--primary);
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+
+    .wishknot-preview .knot::before,
+    .wishknot-preview .knot::after {
+      content: '';
+      position: absolute;
+      width: 100px;
+      height: 30px;
+      background: var(--secondary);
+      border-radius: 20px;
+    }
+
+    .wishknot-preview .knot::before {
+      transform: rotate(45deg);
+    }
+
+    .wishknot-preview .knot::after {
+      transform: rotate(-45deg);
+    }
+
+    /* Gift Meta */
+    .gift-meta {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .gift-title {
+      font-family: var(--font-secondary);
+      font-size: 1.1rem;
+      color: var(--dark);
+    }
+
+    .gift-tags {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .gift-tag {
+      font-size: 0.8rem;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-weight: 500;
+    }
+
+    .type-poem {
+      background: rgba(255, 141, 168, 0.1);
+      color: var(--secondary);
+    }
+
+    .type-voice {
+      background: rgba(123, 90, 255, 0.1);
+      color: var(--primary);
+    }
+
+    .type-image {
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--success);
+    }
+
+    .type-wishknot {
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--warning);
+    }
+
+    .occasion-tag {
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+
+    /* Simple Footer */
+    footer {
+      background-color: var(--dark);
+      color: white;
+      padding: 20px 0;
+      text-align: center;
+    }
+
+    footer p {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 0.9rem;
+    }
+
+    /* Modal */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: var(--transition);
+    }
+
+    .modal.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: var(--border-radius-lg);
+      width: 90%;
+      max-width: 600px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 30px;
+      position: relative;
+      transform: translateY(20px);
+      transition: var(--transition);
+    }
+
+    .modal.active .modal-content {
+      transform: translateY(0);
+    }
+
+    .close-modal {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--dark-gray);
+      transition: var(--transition);
+    }
+
+    .close-modal:hover {
+      color: var(--dark);
+    }
+
+    /* Responsive Styles */
+    @media (max-width: 768px) {
+      .gallery-hero {
+        padding: 120px 0 60px;
+      }
+
+      .gallery-hero h1 {
+        font-size: 2.4rem;
+      }
+
+      .gallery-hero p {
+        font-size: 1.1rem;
+      }
+
+      .gallery-grid {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      }
+
+      nav {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background-color: white;
+        flex-direction: column;
+        padding: 20px;
+        box-shadow: var(--shadow-md);
+      }
+
+      .mobile-menu-btn {
+        display: block;
+      }
+
+      .filter-controls {
+        justify-content: flex-start;
+        overflow-x: auto;
+        padding-bottom: 10px;
+      }
+
+      .filter-btn {
+        white-space: nowrap;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .gallery-hero h1 {
+        font-size: 2rem;
+      }
+
+      .logo {
+        font-size: 1.5rem;
+      }
+
+      .gift-preview {
+        height: 200px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header id="mainHeader">
+    <div class="container">
+      <a href="index.html" class="logo">Wispwish</a>
+      <nav>
+        <a href="generator.html">Create Gift</a>
+        <a href="wishknot.html">WishKnot</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="gallery.html" class="active">Gallery</a>
+      </nav>
+      <button class="mobile-menu-btn">
+        <i class="fas fa-bars"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="gallery-page">
+    <section class="gallery-hero">
+      <div class="container">
+        <h1>Gift Gallery</h1>
+        <p>Explore beautiful examples of voice messages, poems, images, and WishKnots</p>
+      </div>
+    </section>
+
+    <section class="gallery-content">
+      <div class="container">
+        <div class="filter-controls">
+          <button class="filter-btn active" data-filter="all">All Gifts</button>
+          <button class="filter-btn" data-filter="poem">Poems</button>
+          <button class="filter-btn" data-filter="voice">Voice Messages</button>
+          <button class="filter-btn" data-filter="image">Images</button>
+          <button class="filter-btn" data-filter="wishknot">WishKnots</button>
+        </div>
+
+        <div class="gallery-grid">
+          <!-- Poem Card -->
+          <div class="gift-card poem-card" data-type="poem">
+            <div class="gift-preview">
+              <h3>For My Amazing Sister</h3>
+              <p>"Like sunshine through my darkest days, your love brightens all my ways..."</p>
+              <button class="view-btn" data-type="poem" data-content="For My Amazing Sister\n\nLike sunshine through my darkest days,\nYour love brightens all my ways.\nThrough every trial, every test,\nYour kindness shines above the rest.">View Full Poem</button>
+            </div>
+            <div class="gift-meta">
+              <div class="gift-title">Sister's Birthday Poem</div>
+              <div class="gift-tags">
+                <span class="gift-tag type-poem">Poem</span>
+                <span class="gift-tag occasion-tag">Birthday</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Voice Message Card -->
+          <div class="gift-card voice-card" data-type="voice">
+            <div class="gift-preview">
+              <div class="voice-player">
+                <i class="fas fa-play"></i>
+              </div>
+            </div>
+            <div class="gift-meta">
+              <div class="gift-title">Anniversary Message</div>
+              <div class="gift-tags">
+                <span class="gift-tag type-voice">Voice Message</span>
+                <span class="gift-tag occasion-tag">Anniversary</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Image Card -->
+          <div class="gift-card image-card" data-type="image">
+            <div class="gift-preview">
+              <img src="https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80" alt="Romantic couple" class="image-preview">
+            </div>
+            <div class="gift-meta">
+              <div class="gift-title">Valentine's Day Photo</div>
+              <div class="gift-tags">
+                <span class="gift-tag type-image">Image</span>
+                <span class="gift-tag occasion-tag">Valentine's</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- WishKnot Card -->
+          <div class="gift-card wishknot-card" data-type="wishknot">
+            <div class="gift-preview">
+              <div class="wishknot-preview">
+                <div class="knot"></div>
+              </div>
+            </div>
+            <div class="gift-meta">
+              <div class="gift-title">Memorial WishKnot</div>
+              <div class="gift-tags">
+                <span class="gift-tag type-wishknot">WishKnot</span>
+                <span class="gift-tag occasion-tag">Memorial</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Poem Card 2 -->
+          <div class="gift-card poem-card" data-type="poem">
+            <div class="gift-preview">
+              <h3>To My Best Friend</h3>
+              <p>"Through every laugh and every tear, you've been my friend so true and dear..."</p>
+              <button class="view-btn" data-type="poem" data-content="To My Best Friend\n\nThrough every laugh and every tear,\nYou've been my friend so true and dear.\nNo distance, time, or changing tide,\nCan break the bond we feel inside.">View Full Poem</button>
+            </div>
+            <div class="gift-meta">
+              <div class="gift-title">Friendship Poem</div>
+              <div class="gift-tags">
+                <span class="gift-tag type-poem">Poem</span>
+                <span class="gift-tag occasion-tag">Friendship</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Voice Message Card 2 -->
+          <div class="gift-card voice-card" data-type="voice">
+            <div class="gift-preview">
+              <div class="voice-player">
+                <i class="fas fa-play"></i>
+              </div>
+            </div>
+            <div class="gift-meta">
+              <div class="gift-title">Thank You Message</div>
+              <div class="gift-tags">
+                <span class="gift-tag type-voice">Voice Message</span>
+                <span class="gift-tag occasion-tag">Gratitude</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Image Card 2 -->
+          <div class="gift-card image-card" data-type="image">
+            <div class="gift-preview">
+              <img src="https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80" alt="Family photo" class="image-preview">
+            </div>
+            <div class="gift-meta">
+              <div class="gift-title">Family Portrait</div>
+              <div class="gift-tags">
+                <span class="gift-tag type-image">Image</span>
+                <span class="gift-tag occasion-tag">Family</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- WishKnot Card 2 -->
+          <div class="gift-card wishknot-card" data-type="wishknot">
+            <div class="gift-preview">
+              <div class="wishknot-preview">
+                <div class="knot"></div>
+              </div>
+            </div>
+            <div class="gift-meta">
+              <div class="gift-title">Wedding WishKnot</div>
+              <div class="gift-tags">
+                <span class="gift-tag type-wishknot">WishKnot</span>
+                <span class="gift-tag occasion-tag">Wedding</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal -->
+  <div class="modal" id="giftModal">
+    <div class="modal-content">
+      <span class="close-modal">&times;</span>
+      <div id="modal-body">
+        <!-- Content will be inserted here by JavaScript -->
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="container">
+      <p>&copy; 2023 Wispwish. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Mobile menu toggle
+      const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+      const nav = document.querySelector('nav');
+      
+      if (mobileMenuBtn && nav) {
+        mobileMenuBtn.addEventListener('click', function() {
+          nav.style.display = nav.style.display === 'flex' ? 'none' : 'flex';
+        });
+
+        function handleResize() {
+          if (window.innerWidth > 768) {
+            nav.style.display = 'flex';
+          } else {
+            nav.style.display = 'none';
+          }
+        }
+
+        window.addEventListener('resize', handleResize);
+        handleResize();
+      }
+
+      // Filter functionality
+      const filterBtns = document.querySelectorAll('.filter-btn');
+      const galleryItems = document.querySelectorAll('.gift-card');
+      
+      filterBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+          // Remove active class from all buttons
+          filterBtns.forEach(b => b.classList.remove('active'));
+          // Add active class to clicked button
+          this.classList.add('active');
+          
+          const filterValue = this.dataset.filter;
+          
+          galleryItems.forEach(item => {
+            if (filterValue === 'all' || item.dataset.type === filterValue) {
+              item.style.display = 'block';
+            } else {
+              item.style.display = 'none';
+            }
+          });
+        });
+      });
+
+      // Modal functionality
+      const modal = document.getElementById('giftModal');
+      const modalBody = document.getElementById('modal-body');
+      const closeModal = document.querySelector('.close-modal');
+      const viewBtns = document.querySelectorAll('.view-btn');
+      
+      function openModal(content, type) {
+        let modalContent = '';
+        
+        if (type === 'poem') {
+          const lines = content.split('\n');
+          modalContent = `<div class="modal-poem">
+            <h2>${lines[0]}</h2>
+            <div class="poem-content">`;
+          
+          for (let i = 1; i < lines.length; i++) {
+            if (lines[i].trim() === '') {
+              modalContent += `<br>`;
+            } else {
+              modalContent += `<p>${lines[i]}</p>`;
+            }
+          }
+          
+          modalContent += `</div></div>`;
+        } else if (type === 'voice') {
+          modalContent = `<div class="modal-voice">
+            <h2>Voice Message</h2>
+            <div class="voice-player large">
+              <i class="fas fa-play"></i>
+            </div>
+            <p>Playing your personalized voice message...</p>
+          </div>`;
+        }
+        
+        modalBody.innerHTML = modalContent;
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      }
+      
+      function closeModalFunc() {
+        modal.classList.remove('active');
+        document.body.style.overflow = 'auto';
+      }
+      
+      viewBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+          openModal(this.dataset.content, this.dataset.type);
+        });
+      });
+      
+      closeModal.addEventListener('click', closeModalFunc);
+      
+      modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+          closeModalFunc();
+        }
+      });
+      
+      // Voice player functionality
+      document.querySelectorAll('.voice-player').forEach(player => {
+        player.addEventListener('click', function() {
+          const isPlaying = this.classList.contains('playing');
+          
+          if (isPlaying) {
+            this.classList.remove('playing');
+            this.innerHTML = '<i class="fas fa-play"></i>';
+            // Here you would stop the audio
+          } else {
+            this.classList.add('playing');
+            this.innerHTML = '<i class="fas fa-pause"></i>';
+            // Here you would play the audio
+          }
+        });
+      });
+
+      // Add animation to gallery items
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.style.opacity = '1';
+            entry.target.style.transform = 'translateY(0)';
+          }
+        });
+      }, { threshold: 0.1 });
+
+      galleryItems.forEach(item => {
+        item.style.opacity = '0';
+        item.style.transform = 'translateY(20px)';
+        item.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+        observer.observe(item);
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wispwish Admin Portal</title>
+  <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#007bff',
+            secondary: '#6b7280',
+          },
+        },
+      },
+    };
+  </script>
+  <!-- Google Tag Manager -->
+  <script>
+    (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-NJX87CF9');
+  </script>
+  <!-- End Google Tag Manager -->
+  <!-- Meta Pixel Code -->
+  <script>
+    !function(f,b,e,v,n,t,s)
+    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+    n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];
+    s.parentNode.insertBefore(t,s)}(window, document,'script',
+    'https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', 'YOUR_PIXEL_ID');
+    fbq('track', 'PageView');
+  </script>
+  <noscript>
+    <img height="1" width="1" style="display:none"
+         src="https://www.facebook.com/tr?id=YOUR_PIXEL_ID&ev=PageView&noscript=1"/>
+  </noscript>
+  <!-- End Meta Pixel Code -->
+</head>
+<body>
+    <!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NJX87CF9"
+    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>    
+    <!-- End Google Tag Manager (noscript) -->
+  <div id="root" class="min-h-screen bg-gray-100"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const App = () => {
+      const [currentPage, setCurrentPage] = useState('orders');
+      const [orders, setOrders] = useState([]);
+      const [giftTypes, setGiftTypes] = useState([]);
+      const [faqs, setFaqs] = useState([]);
+      const [testimonials, setTestimonials] = useState([]);
+      const [gallery, setGallery] = useState([]);
+
+      const fetchOrders = async () => {
+        try {
+          const response = await axios.get('http://localhost:5001/api/gift');
+          setOrders(response.data);
+          fbq('track', 'ViewContent', { content_type: 'orders' });
+          window.dataLayer.push({ event: 'view_orders' });
+        } catch (error) {
+          console.error('Error fetching orders:', error);
+        }
+      };
+
+      const fetchGiftTypes = async () => {
+        try {
+          const response = await axios.get('http://localhost:5001/api/gift-types');
+          setGiftTypes(response.data);
+        } catch (error) {
+          console.error('Error fetching gift types:', error);
+        }
+      };
+
+      const fetchCMSContent = async () => {
+        try {
+          const faqResponse = await axios.get('http://localhost:5001/api/cms/faq');
+          const testimonialResponse = await axios.get('http://localhost:5001/api/cms/testimonials');
+          const galleryResponse = await axios.get('http://localhost:5001/api/cms/gallery');
+          setFaqs(faqResponse.data);
+          setTestimonials(testimonialResponse.data);
+          setGallery(galleryResponse.data);
+        } catch (error) {
+          console.error('Error fetching CMS content:', error);
+        }
+      };
+
+      useEffect(() => {
+        fetchOrders();
+        fetchGiftTypes();
+        fetchCMSContent();
+      }, []);
+
+      const regenerateContent = async (giftId) => {
+        try {
+          const response = await axios.post(`http://localhost:5001/api/gift/regenerate/${giftId}`);
+          setOrders(orders.map(order => order._id === giftId ? { ...order, generatedContent: response.data.generatedContent, audioContent: response.data.audioContent, imageContent: response.data.imageContent } : order));
+          fbq('track', 'CustomEvent', { event_name: 'RegenerateContent', gift_id: giftId });
+          window.dataLayer.push({ event: 'regenerate_content', gift_id: giftId });
+          alert('Content regenerated successfully!');
+        } catch (error) {
+          console.error('Error regenerating content:', error);
+          alert('Failed to regenerate content');
+        }
+      };
+
+      const updateGiftType = async (id, updatedData) => {
+        try {
+          await axios.put(`http://localhost:5001/api/gift-types/${id}`, updatedData);
+          setGiftTypes(giftTypes.map(gt => gt._id === id ? { ...gt, ...updatedData } : gt));
+          fbq('track', 'CustomEvent', { event_name: 'UpdateGiftType', gift_type_id: id });
+          window.dataLayer.push({ event: 'update_gift_type', gift_type_id: id });
+          alert('Gift type updated successfully!');
+        } catch (error) {
+          console.error('Error updating gift type:', error);
+          alert('Failed to update gift type');
+        }
+      };
+
+      const addCMSContent = async (type, data) => {
+        try {
+          const response = await axios.post(`http://localhost:5001/api/cms/${type}`, data);
+          if (type === 'faq') setFaqs([...faqs, response.data]);
+          if (type === 'testimonials') setTestimonials([...testimonials, response.data]);
+          if (type === 'gallery') setGallery([...gallery, response.data]);
+          fbq('track', 'CustomEvent', { event_name: `Add${type.charAt(0).toUpperCase() + type.slice(1)}` });
+          window.dataLayer.push({ event: `add_${type}`, item_id: response.data._id });
+          alert(`${type} added successfully!`);
+        } catch (error) {
+          console.error(`Error adding ${type}:`, error);
+          alert(`Failed to add ${type}`);
+        }
+      };
+
+      return (
+        <div className="container mx-auto p-4">
+          <header className="flex justify-between items-center bg-primary text-white p-4 rounded-md">
+            <h1 className="text-2xl font-bold">Wispwish Admin Portal</h1>
+            <nav>
+              <button className={`mr-4 ${currentPage === 'orders' ? 'underline' : ''}`} onClick={() => setCurrentPage('orders')}>Orders</button>
+              <button className={`mr-4 ${currentPage === 'gift-types' ? 'underline' : ''}`} onClick={() => setCurrentPage('gift-types')}>Gift Types</button>
+              <button className={`mr-4 ${currentPage === 'cms' ? 'underline' : ''}`} onClick={() => setCurrentPage('cms')}>CMS</button>
+            </nav>
+          </header>
+
+          {currentPage === 'orders' && (
+            <div className="mt-6">
+              <h2 className="text-xl font-semibold mb-4">Order Tracking</h2>
+              <div className="grid grid-cols-1 gap-4">
+                {orders.map(order => (
+                  <div key={order._id} className="border p-4 rounded-md bg-white">
+                    <p><strong>Order ID:</strong> {order._id}</p>
+                    <p><strong>Recipient:</strong> {order.recipientName}</p>
+                    <p><strong>Gift Type:</strong> {order.giftType}</p>
+                    <p><strong>Price:</strong> ${order.price} AUD</p>
+                    <p><strong>Status:</strong> {order.status}</p>
+                    {order.giftType === 'voice' && order.audioContent && (
+                      <audio controls className="my-2">
+                        <source src={`data:audio/mpeg;base64,${order.audioContent}`} type="audio/mpeg" />
+                      </audio>
+                    )}
+                    {order.giftType === 'image' && order.imageContent && (
+                      <img src={`data:image/png;base64,${order.imageContent}`} alt="Gift" className="w-32 my-2 rounded" />
+                    )}
+                    <p><strong>Content:</strong> {order.generatedContent}</p>
+                    <button className="mt-2 bg-primary text-white px-4 py-2 rounded" onClick={() => regenerateContent(order._id)}>Regenerate Content</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {currentPage === 'gift-types' && (
+            <div className="mt-6">
+              <h2 className="text-xl font-semibold mb-4">Manage Gift Types</h2>
+              {giftTypes.map(gt => (
+                <div key={gt._id} className="border p-4 rounded-md bg-white mb-4">
+                  <input
+                    type="text"
+                    defaultValue={gt.name}
+                    onBlur={(e) => updateGiftType(gt._id, { name: e.target.value })}
+                    className="border p-2 mr-2 rounded"
+                    placeholder="Gift Type Name"
+                  />
+                  <input
+                    type="number"
+                    defaultValue={gt.price}
+                    onBlur={(e) => updateGiftType(gt._id, { price: parseFloat(e.target.value) })}
+                    className="border p-2 mr-2 rounded"
+                    placeholder="Price (AUD)"
+                  />
+                  <textarea
+                    defaultValue={gt.description}
+                    onBlur={(e) => updateGiftType(gt._id, { description: e.target.value })}
+                    className="border p-2 rounded w-full"
+                    placeholder="Description"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {currentPage === 'cms' && (
+            <div className="mt-6">
+              <h2 className="text-xl font-semibold mb-4">Content Management</h2>
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold">FAQs</h3>
+                {faqs.map(faq => (
+                  <div key={faq._id} className="border p-4 rounded-md bg-white mb-2">
+                    <p><strong>Question:</strong> {faq.question}</p>
+                    <p><strong>Answer:</strong> {faq.answer}</p>
+                  </div>
+                ))}
+                <div className="mt-4">
+                  <input
+                    type="text"
+                    id="faq-question"
+                    className="border p-2 mr-2 rounded"
+                    placeholder="New FAQ Question"
+                  />
+                  <textarea
+                    id="faq-answer"
+                    className="border p-2 rounded w-full"
+                    placeholder="New FAQ Answer"
+                  />
+                  <button
+                    className="mt-2 bg-primary text-white px-4 py-2 rounded"
+                    onClick={() => addCMSContent('faq', {
+                      question: document.getElementById('faq-question').value,
+                      answer: document.getElementById('faq-answer').value
+                    })}
+                  >
+                    Add FAQ
+                  </button>
+                </div>
+              </div>
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold">Testimonials</h3>
+                {testimonials.map(test => (
+                  <div key={test._id} className="border p-4 rounded-md bg-white mb-2">
+                    <p><strong>Author:</strong> {test.author}</p>
+                    <p><strong>Content:</strong> {test.content}</p>
+                  </div>
+                ))}
+                <div className="mt-4">
+                  <input
+                    type="text"
+                    id="testimonial-author"
+                    className="border p-2 mr-2 rounded"
+                    placeholder="Author Name"
+                  />
+                  <textarea
+                    id="testimonial-content"
+                    className="border p-2 rounded w-full"
+                    placeholder="Testimonial Content"
+                  />
+                  <button
+                    className="mt-2 bg-primary text-white px-4 py-2 rounded"
+                    onClick={() => addCMSContent('testimonials', {
+                      author: document.getElementById('testimonial-author').value,
+                      content: document.getElementById('testimonial-content').value
+                    })}
+                  >
+                    Add Testimonial
+                  </button>
+                </div>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Gallery</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  {gallery.map(img => (
+                    <img key={img._id} src={img.imageUrl} alt="Gallery" className="w-full h-32 object-cover rounded" />
+                  ))}
+                </div>
+                <div className="mt-4">
+                  <input
+                    type="text"
+                    id="gallery-image-url"
+                    className="border p-2 rounded w-full"
+                    placeholder="Image URL (e.g., https://example.com/image.jpg)"
+                  />
+                  <button
+                    className="mt-2 bg-primary text-white px-4 py-2 rounded"
+                    onClick={() => addCMSContent('gallery', {
+                      imageUrl: document.getElementById('gallery-image-url').value
+                    })}
+                  >
+                    Add Image
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+  <!-- Google Tag Manager (noscript) -->
+  <noscript>
+    <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NJX87CF9"
+            height="0" width="0" style="display:none;visibility:hidden"></iframe>
+  </noscript>
+  <!-- End Google Tag Manager (noscript) -->
+</body>
+</html>
