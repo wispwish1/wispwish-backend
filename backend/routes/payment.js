@@ -155,8 +155,8 @@ router.post('/create-checkout-session', async (req, res) => {
         },
       ],
       mode: 'payment',
-      success_url: `http://wispwish.com/generator.html?session_id={CHECKOUT_SESSION_ID}&gift_id=${giftId}`,
-      cancel_url: 'http://wispwish.com/generator.html',
+      success_url: `https://wispwish.com/generator.html?session_id={CHECKOUT_SESSION_ID}&gift_id=${giftId}`,
+      cancel_url: 'https://wispwish.com/generator.html',
       metadata: { giftId, buyerEmail: email, userId: userId || 'guest', paymentId: payment._id.toString() },
     });
 
