@@ -19,7 +19,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:5500' ,'http://wispwish.com' , 'https://wispwish.com'],
+    origin: ['http://localhost:3000', 'http://127.0.0.1:5500' , 'https://wispwish.com' , 'https://www.wispwish.com'],
     credentials: true,
 }));
 
