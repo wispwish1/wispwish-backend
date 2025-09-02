@@ -61,11 +61,18 @@ router.post('/create-checkout-session', async (req, res) => {
       return res.status(400).json({ message: 'Invalid price' });
     }
 
+    // Fix: Use lean() to get a plain JavaScript object and handle song audioContent
     const gift = await Gift.findById(giftId);
     if (!gift) {
       return res.status(404).json({ message: 'Gift not found' });
     }
-
+    
+    // Fix: Extract audio content from generatedContent for song gifts
+    if (giftType === 'song' && gift.generatedContent && typeof gift.generatedContent === 'object' && gift.generatedContent.audio) {
+      gift.audioContent = gift.generatedContent.audio;
+      console.log('✅ Extracted audio content from song gift');
+    }
+    
     // Check for existing order and payment
     let order = await Order.findOne({ giftId }).populate('payment');
     let payment;
@@ -155,8 +162,8 @@ router.post('/create-checkout-session', async (req, res) => {
         },
       ],
       mode: 'payment',
-      success_url: `https://wispwish.com/generator.html?session_id={CHECKOUT_SESSION_ID}&gift_id=${giftId}`,
-      cancel_url: 'https://wispwish.com/generator.html',
+      success_url: `http://127.0.0.1:5501/Frontend/generator.html?session_id={CHECKOUT_SESSION_ID}&gift_id=${giftId}`,
+      cancel_url: 'http://127.0.0.1:5501/Frontend/generator.html',
       metadata: { giftId, buyerEmail: email, userId: userId || 'guest', paymentId: payment._id.toString() },
     });
 
@@ -372,8 +379,11 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
       
       // Check if it's time to send the gift (current time is after scheduled time)
       if (scheduledDate <= now) {
+        // Make sure gift is fully populated with audioContent
+        const populatedGift = await Gift.findById(gift._id);
+        
         const giftResult = await nodemailerService.sendGiftEmail({
-          ...gift.toObject(),
+          ...populatedGift.toObject(),
           buyerEmail: buyerEmail,
         });
 

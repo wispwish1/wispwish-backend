@@ -1,23 +1,21 @@
-
-
 import nodemailer from 'nodemailer';
 import fs from 'fs';
 import path from 'path';
-import axios from 'axios'; // Add this import
+import axios from 'axios';
+import validator from 'validator';
 
 /**
  * Create Nodemailer transporter
  */
-
 const createTransporter = () => {
-    // Debug mode - console me email content dikhayega
     if (process.env.NODE_ENV === 'development') {
         return {
             sendMail: async (mailOptions) => {
                 console.log('📧 EMAIL CONTENT:', {
                     to: mailOptions.to,
                     subject: mailOptions.subject,
-                    html: mailOptions.html.substring(0, 200) + '...'
+                    html: mailOptions.html.substring(0, 200) + '...',
+                    attachments: mailOptions.attachments ? mailOptions.attachments.map(a => a.filename) : []
                 });
                 return { success: true, messageId: 'debug-' + Date.now() };
             }
@@ -34,6 +32,48 @@ const createTransporter = () => {
             pass: process.env.EMAIL_PASS || 'vbjo vrbc jxvs pihv'
         }
     });
+};
+
+/**
+ * Helper function to validate URLs
+ */
+const validateUrl = (url) => {
+    return validator.isURL(url, { protocols: ['http', 'https'], require_protocol: true });
+};
+
+/**
+ * Helper function to download and prepare attachment
+ */
+const prepareAttachment = async (url, filename, contentType, cid = null) => {
+    try {
+        if (!validateUrl(url)) {
+            console.error(`❌ Invalid URL for attachment: ${url}`);
+            return null;
+        }
+
+        console.log(`📥 Downloading attachment from: ${url}`);
+        const response = await axios.get(url, {
+            responseType: 'arraybuffer',
+            timeout: 15000
+        });
+        
+        const buffer = Buffer.from(response.data);
+        if (buffer.length === 0) {
+            console.error(`❌ Downloaded file is empty: ${url}`);
+            return null;
+        }
+        console.log(`✅ Successfully downloaded: ${filename} (${buffer.length} bytes)`);
+        
+        return {
+            filename,
+            content: buffer,
+            contentType: contentType || response.headers['content-type'] || 'application/octet-stream',
+            ...(cid && { cid })
+        };
+    } catch (error) {
+        console.error(`❌ Error downloading attachment from ${url}: ${error.message}, Status: ${error.response?.status}`);
+        return null;
+    }
 };
 
 /**
@@ -93,10 +133,10 @@ const sendWelcomeEmail = async (userEmail, userName) => {
         };
 
         const result = await transporter.sendMail(mailOptions);
-        console.log('Welcome email sent successfully:', result.messageId);
+        console.log('✅ Welcome email sent successfully:', result.messageId);
         return { success: true, messageId: result.messageId };
     } catch (error) {
-        console.error('Error sending welcome email:', error);
+        console.error('❌ Error sending welcome email:', error.message);
         return { success: false, error: error.message };
     }
 };
@@ -109,12 +149,13 @@ const sendOrderConfirmation = async (userEmail, orderData) => {
         const transporter = createTransporter();
         let attachments = [];
         
-        // Add image attachment for image gifts with fallback logic
+        console.log(`📧 Preparing order confirmation for ${userEmail}, giftType: ${orderData.giftType}`);
+
+        // Handle image attachments for image gifts
         if (orderData.giftType === 'image') {
             let imageUrl = orderData.generatedContent;
             
-            // ✅ Fallback: If generatedContent is not a URL, try to get from gift data
-            if (!imageUrl || !imageUrl.startsWith('http')) {
+            if (!imageUrl || !validateUrl(imageUrl)) {
                 console.log('⚠️ generatedContent is not a valid URL, attempting fallback...');
                 if (orderData.giftId) {
                     try {
@@ -124,45 +165,80 @@ const sendOrderConfirmation = async (userEmail, orderData) => {
                             const selectedImage = gift.images.find(img => 
                                 img._id.toString() === gift.selectedImageId.toString()
                             );
-                            if (selectedImage) {
+                            if (selectedImage && validateUrl(selectedImage.url)) {
                                 imageUrl = selectedImage.url;
                                 console.log('✅ Fallback successful - found image URL:', imageUrl);
                             }
                         }
                     } catch (fallbackError) {
-                        console.error('❌ Fallback failed:', fallbackError);
+                        console.error('❌ Fallback failed:', fallbackError.message);
                     }
                 }
             }
             
-            // Download and attach image if URL is valid
-            if (imageUrl && imageUrl.startsWith('http')) {
-                try {
-                    console.log('📎 Adding image attachment to order confirmation:', imageUrl);
-                    const response = await axios.get(imageUrl, {
-                        responseType: 'arraybuffer',
-                        timeout: 15000
-                    });
-                    
-                    const imageBuffer = Buffer.from(response.data);
-                    const imageExtension = imageUrl.split('.').pop().toLowerCase() || 'jpg';
-                    
-                    attachments.push({
-                        filename: `preview_artwork_${orderData.recipientName || 'gift'}.${imageExtension}`,
-                        content: imageBuffer,
-                        contentType: response.headers['content-type'] || `image/${imageExtension}`,
-                        cid: 'preview_image' // ✅ CID for embedding in email
-                    });
-                    
-                    console.log('✅ Order confirmation image attachment added successfully');
-                } catch (imageError) {
-                    console.error('❌ Error adding image to order confirmation:', imageError.message);
+            if (imageUrl && validateUrl(imageUrl)) {
+                const imageExtension = imageUrl.split('.').pop().toLowerCase() || 'jpg';
+                const imageAttachment = await prepareAttachment(
+                    imageUrl,
+                    `preview_artwork_${orderData.recipientName || 'gift'}.${imageExtension}`,
+                    `image/${imageExtension === 'jpg' ? 'jpeg' : imageExtension}`,
+                    'preview_image'
+                );
+                
+                if (imageAttachment) {
+                    attachments.push(imageAttachment);
+                    console.log('✅ Image attachment added to order confirmation');
+                } else {
+                    console.error('❌ Failed to add image attachment');
                 }
             } else {
-                console.error('❌ No valid image URL found for order confirmation attachment');
+                console.error('❌ No valid image URL found for order confirmation');
             }
         }
         
+        // Handle voice attachments for voice or song gifts
+        if (['voice', 'song'].includes(orderData.giftType) && orderData.audioContent) {
+            try {
+                let audioBuffer;
+                if (Buffer.isBuffer(orderData.audioContent)) {
+                    audioBuffer = orderData.audioContent;
+                    console.log('✅ Audio content is already a Buffer');
+                } else if (typeof orderData.audioContent === 'string') {
+                    if (orderData.audioContent.startsWith('data:audio')) {
+                        const base64Data = orderData.audioContent.split(',')[1];
+                        audioBuffer = Buffer.from(base64Data, 'base64');
+                        console.log('✅ Converted base64 audio to Buffer');
+                    } else if (validateUrl(orderData.audioContent)) {
+                        const audioAttachment = await prepareAttachment(
+                            orderData.audioContent,
+                            `voice_message_${orderData.recipientName || 'gift'}.mp3`,
+                            'audio/mpeg'
+                        );
+                        if (audioAttachment) {
+                            audioBuffer = audioAttachment.content;
+                            console.log('✅ Downloaded audio from URL');
+                        }
+                    } else {
+                        audioBuffer = Buffer.from(orderData.audioContent);
+                        console.log('✅ Converted string audio to Buffer');
+                    }
+                }
+                
+                if (audioBuffer) {
+                    attachments.push({
+                        filename: `${orderData.giftType}_message_${orderData.recipientName || 'gift'}.mp3`,
+                        content: audioBuffer,
+                        contentType: 'audio/mpeg'
+                    });
+                    console.log(`✅ ${orderData.giftType} attachment added to order confirmation`);
+                }
+            } catch (audioError) {
+                console.error(`❌ Error adding ${orderData.giftType} attachment to order confirmation:`, audioError.message);
+            }
+        } else {
+            console.log(`⚠️ No audio content found for ${orderData.giftType} gift in order confirmation`);
+        }
+
         const mailOptions = {
             from: `${process.env.FROM_NAME || 'Wispwish Team'} <${process.env.FROM_EMAIL || 'trickyboy467@gmail.com'}>`,
             to: userEmail,
@@ -211,7 +287,7 @@ const sendOrderConfirmation = async (userEmail, orderData) => {
                             </table>
                         </div>
                         
-                        ${orderData.generatedContent ? `
+                        ${orderData.generatedContent && !['image', 'voice', 'song'].includes(orderData.giftType) ? `
                         <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 25px; border-radius: 10px; margin: 25px 0; border-left: 4px solid #6f42c1;">
                             <h3 style="color: #6f42c1; margin-top: 0;">📝 Your ${orderData.giftType} Content</h3>
                             <div style="background: white; padding: 20px; border-radius: 8px; margin-top: 15px;">
@@ -222,10 +298,32 @@ const sendOrderConfirmation = async (userEmail, orderData) => {
                         </div>
                         ` : ''}
                         
-                        ${orderData.giftType === 'image' && attachments.length > 0 ? `
+                        ${orderData.giftType === 'image' && attachments.some(a => a.cid === 'preview_image') ? `
                         <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; margin: 25px 0; text-align: center;">
                             <h3 style="color: #333; margin-top: 0;">🖼️ Your Custom Artwork Preview</h3>
                             <img src="cid:preview_image" alt="Custom Artwork" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />
+                            <p style="color: #666; font-style: italic;">The artwork is also attached to this email.</p>
+                        </div>
+                        ` : orderData.giftType === 'image' ? `
+                        <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; margin: 25px 0; text-align: center;">
+                            <h3 style="color: #333; margin-top: 0;">🖼️ Your Custom Artwork Preview</h3>
+                            <p style="color: #666; font-style: italic;">We encountered an issue loading your custom artwork. Please contact support for assistance.</p>
+                        </div>
+                        ` : ''}
+                        
+                        ${['voice', 'song'].includes(orderData.giftType) && attachments.some(a => a.filename.includes(`${orderData.giftType}_message`)) ? `
+                        <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; margin: 25px 0;">
+                            <h3 style="color: #333; margin-top: 0;">🎵 Your ${orderData.giftType.charAt(0).toUpperCase() + orderData.giftType.slice(1)} Message</h3>
+                            <p style="color: #666; font-style: italic;">
+                                🎧 Your personalized ${orderData.giftType} message is attached to this email. Download and play it to hear your special message!
+                            </p>
+                        </div>
+                        ` : ['voice', 'song'].includes(orderData.giftType) ? `
+                        <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; margin: 25px 0;">
+                            <h3 style="color: #333; margin-top: 0;">🎵 Your ${orderData.giftType.charAt(0).toUpperCase() + orderData.giftType.slice(1)} Message</h3>
+                            <p style="color: #666; font-style: italic;">
+                                We encountered an issue with your ${orderData.giftType} message. Please contact support for assistance.
+                            </p>
                         </div>
                         ` : ''}
                         
@@ -279,14 +377,14 @@ const sendOrderConfirmation = async (userEmail, orderData) => {
                     </div>
                 </div>
             `,
-            attachments // Add attachments array
+            attachments
         };
 
         const result = await transporter.sendMail(mailOptions);
-        console.log('Enhanced order confirmation email sent successfully:', result.messageId);
+        console.log('✅ Enhanced order confirmation email sent successfully:', result.messageId);
         return { success: true, messageId: result.messageId };
     } catch (error) {
-        console.error('Error sending enhanced order confirmation email:', error);
+        console.error('❌ Error sending enhanced order confirmation email:', error.message);
         return { success: false, error: error.message };
     }
 };
@@ -295,215 +393,273 @@ const sendOrderConfirmation = async (userEmail, orderData) => {
  * Send Gift Delivery Email with the actual gift content
  */
 const sendGiftEmail = async (gift) => {
-  try {
-      const transporter = createTransporter();
-      
-      const { giftType, recipientName, senderName, generatedContent, deliveryEmail, audioContent, occasion, senderMessage } = gift;
-      
-      let giftContent = '';
-      let attachments = [];
-      
-      console.log('=== DEBUGGING GIFT EMAIL ===');
-      console.log('Processing gift email for type:', giftType);
-      console.log('Generated content:', generatedContent);
-      console.log('Generated content type:', typeof generatedContent);
-      console.log('Generated content length:', generatedContent ? generatedContent.length : 'null');
-      console.log('Audio content available:', !!audioContent);
-      console.log('Full gift object keys:', Object.keys(gift));
-      console.log('================================');
-      
-      // Generate gift content based on type
-      switch (giftType) {
-          case 'poem':
-              giftContent = `
-                  <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; border-left: 4px solid #6f42c1; margin: 20px 0;">
-                      <h3 style="color: #6f42c1; margin-top: 0;">📝 Your Personalized Poem</h3>
-                      <div style="font-style: italic; color: #333; line-height: 1.8; font-size: 16px;">
-                          ${generatedContent ? generatedContent.replace(/\n/g, '<br>') : 'Your beautiful poem content'}
-                      </div>
-                  </div>
-              `;
-              break;
-              
-          case 'image':
-              console.log('Processing IMAGE gift type');
-              console.log('generatedContent for image:', generatedContent);
-              
-              // FALLBACK: If generatedContent is not set, try to get it from selectedImageId
-              let imageUrl = generatedContent;
-              if (!imageUrl && gift.selectedImageId && gift.images) {
-                  console.log('🔄 Fallback: Finding image URL from selectedImageId:', gift.selectedImageId);
-                  const selectedImage = gift.images.find(img => {
-                      const match = img._id.toString() === gift.selectedImageId.toString();
-                      console.log('🔍 Fallback comparing:', img._id.toString(), 'with', gift.selectedImageId.toString(), '- Match:', match);
-                      return match;
-                  });
-                  if (selectedImage) {
-                      imageUrl = selectedImage.url;
-                      console.log('✅ Fallback successful - found image URL:', imageUrl);
-                  } else {
-                      console.error('❌ Fallback failed - no matching image found');
-                  }
-              }
-              
-              giftContent = `
-                  <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; border-left: 4px solid #e91e63; margin: 20px 0;">
-                      <h3 style="color: #e91e63; margin-top: 0;">🎨 Your Custom Artwork</h3>
-                      <div style="text-align: center; margin: 20px 0;">
-                          ${imageUrl ? `<img src="cid:custom-artwork" alt="Your Custom Artwork" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">` : '<p>Your beautiful custom artwork</p>'}
-                      </div>
-                      <p style="color: #666; font-style: italic; text-align: center;">
-                          🎨 This artwork was specially created just for you! The image is also attached to this email.
-                      </p>
-                  `;
-              
-              // FIXED: Use imageUrl instead of generatedContent
-              if (imageUrl) {
-                  console.log('🖼️ Adding image attachment for:', imageUrl);
-                  try {
-                      console.log('📥 Starting image download...');
-                      const response = await axios.get(imageUrl, {
-                          responseType: 'arraybuffer',
-                          timeout: 15000 // Increased timeout to 15 seconds
-                      });
-                      
-                      console.log('📥 Image downloaded successfully, size:', response.data.byteLength);
-                      console.log('📥 Content-Type:', response.headers['content-type']);
-                      
-                      const imageBuffer = Buffer.from(response.data);
-                      const imageExtension = imageUrl.split('.').pop().toLowerCase() || 'jpg';
-                      
-                      attachments.push({
-                          filename: `custom_artwork_for_${recipientName || 'you'}.${imageExtension}`,
-                          content: imageBuffer,
-                          contentType: response.headers['content-type'] || `image/${imageExtension}`,
-                          cid: 'custom-artwork'
-                      });
-                      
-                      console.log('✅ Image attachment added successfully');
-                      console.log('📎 Attachment details:', {
-                          filename: `custom_artwork_for_${recipientName || 'you'}.${imageExtension}`,
-                          size: imageBuffer.length,
-                          contentType: response.headers['content-type'] || `image/${imageExtension}`
-                      });
-                  } catch (imageError) {
-                      console.error('❌ Error downloading/adding image attachment:', imageError.message);
-                      console.error('❌ Full error:', imageError);
-                      // Fallback to URL embedding if download fails
-                      giftContent = giftContent.replace('cid:custom-artwork', imageUrl);
-                  }
-              } else {
-                  console.log('⚠️ No image URL found for image gift');
-                  console.log('⚠️ Gift object selectedImageId:', gift.selectedImageId);
-                  console.log('⚠️ Gift object images:', gift.images);
-              }
-              break;
-              
-          case 'voice':
-              giftContent = `
-                  <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; border-left: 4px solid #28a745; margin: 20px 0;">
-                      <h3 style="color: #28a745; margin-top: 0;">🎵 Your Voice Message</h3>
-                      <div style="color: #333; line-height: 1.8; font-size: 16px; margin-bottom: 15px;">
-                          ${generatedContent ? generatedContent.replace(/\n/g, '<br>') : 'Your heartfelt message'}
-                      </div>
-                      <p style="color: #666; font-style: italic;">
-                          🎧 Your personalized voice message is attached to this email. Download and play it to hear your special message!
-                      </p>
-                  </div>
-              `;
-              
-              // FIXED: Add audio attachment if available
-              if (audioContent) {
-                  console.log('Adding voice message attachment');
-                  try {
-                      attachments.push({
-                          filename: `voice_message_for_${recipientName || 'you'}.mp3`,
-                          content: Buffer.isBuffer(audioContent) ? audioContent : Buffer.from(audioContent, 'base64'),
-                          contentType: 'audio/mpeg'
-                      });
-                      console.log('Voice attachment added successfully');
-                  } catch (attachError) {
-                      console.error('Error adding voice attachment:', attachError);
-                  }
-              } else {
-                  console.log('No audio content found for voice message');
-              }
-              break;
-              
-          default:
-              giftContent = `
-                  <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; border-left: 4px solid #fd7e14; margin: 20px 0;">
-                      <h3 style="color: #fd7e14; margin-top: 0;">🎁 Your Special Gift</h3>
-                      <div style="color: #333; line-height: 1.8; font-size: 16px;">
-                          ${generatedContent ? generatedContent.replace(/\n/g, '<br>') : 'Your personalized gift content'}
-                      </div>
-                  </div>
-              `;
-      }
-      
-      const mailOptions = {
-          from: process.env.EMAIL_FROM || 'trickyboy467@gmail.com',
-          to: deliveryEmail,
-          subject: `🎁 You've Received a Special ${giftType.charAt(0).toUpperCase() + giftType.slice(1)} Gift!`,
-          html: `
-              <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
-                  <div style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-                      <h1 style="color: white; margin: 0; font-size: 28px;">You've Received a Gift! 🎁</h1>
-                  </div>
-                  
-                  <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                      <h2 style="color: #333; margin-top: 0;">Dear ${recipientName || 'Friend'}, 💝</h2>
-                      
-                      <p style="color: #666; font-size: 16px; line-height: 1.6;">
-                          ${senderName || 'Someone special'} has created a personalized ${giftType} gift just for you! This ${occasion || 'special'} gift was crafted with love and care.
-                      </p>
-                      
-                      ${giftContent}
-                      
-                      ${senderMessage ? `
-                          <div style="background: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
-                              <h4 style="color: #856404; margin-top: 0;">💌 Personal Message:</h4>
-                              <p style="color: #856404; margin-bottom: 0; font-style: italic;">
-                                  "${senderMessage}"
-                              </p>
-                          </div>
-                      ` : ''}
-                      
-                      <div style="text-align: center; margin: 30px 0;">
-                          <p style="color: #666; font-size: 16px;">
-                              ✨ This gift was created with Wispwish - where every gift tells a story ✨
-                          </p>
-                          <a href="http://127.0.0.1:5500/Frontend/index.html" 
-                             style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                                    color: white; 
-                                    padding: 12px 25px; 
-                                    text-decoration: none; 
-                                    border-radius: 20px; 
-                                    font-weight: bold; 
-                                    display: inline-block; 
-                                    margin-top: 10px;">
-                              🎁 Create Your Own Gift
-                          </a>
-                      </div>
-                      
-                      <p style="color: #666; font-size: 14px; text-align: center; margin-top: 30px;">
-                          Made with ❤️ by Wispwish<br>
-                          The magic of personalized gifting
-                      </p>
-                  </div>
-              </div>
-          `,
-          attachments
-      };
-  
-      console.log('Sending email with attachments count:', attachments.length);
-      const result = await transporter.sendMail(mailOptions);
-      console.log('Gift email sent successfully:', result.messageId);
-      return { success: true, messageId: result.messageId };
-  } catch (error) {
-      console.error('Error sending gift email:', error);
-      return { success: false, error: error.message };
-  }
+    try {
+        const transporter = createTransporter();
+        const { giftType, recipientName, senderName, generatedContent, deliveryEmail, audioContent, occasion, senderMessage } = gift;
+        
+        let giftContent = '';
+        let attachments = [];
+        
+        console.log(`📧 Preparing ${giftType} gift email for ${recipientName} to ${deliveryEmail}`);
+
+        // Generate gift content based on type
+        switch (giftType) {
+            case 'poem':
+                if (!generatedContent) {
+                    console.error('❌ No generated content for poem gift');
+                    giftContent = `
+                        <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; border-left: 4px solid #6f42c1; margin: 20px 0;">
+                            <h3 style="color: #6f42c1; margin-top: 0;">📝 Your Personalized Poem</h3>
+                            <p style="color: #666; text-align: center;">
+                                We encountered an issue with your poem content. Please contact the sender for assistance.
+                            </p>
+                        </div>
+                    `;
+                } else {
+                    giftContent = `
+                        <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; border-left: 4px solid #6f42c1; margin: 20px 0;">
+                            <h3 style="color: #6f42c1; margin-top: 0;">📝 Your Personalized Poem</h3>
+                            <div style="font-style: italic; color: #333; line-height: 1.8; font-size: 16px;">
+                                ${generatedContent.replace(/\n/g, '<br>')}
+                            </div>
+                        </div>
+                    `;
+                }
+                break;
+                
+            case 'image':
+                console.log('🖼️ Processing IMAGE gift type');
+                
+                let imageUrl = generatedContent;
+                if (!imageUrl && gift.selectedImageId && gift.images) {
+                    const selectedImage = gift.images.find(img => 
+                        img._id.toString() === gift.selectedImageId.toString()
+                    );
+                    if (selectedImage && validateUrl(selectedImage.url)) {
+                        imageUrl = selectedImage.url;
+                        console.log('✅ Found image URL from selectedImage:', imageUrl);
+                    }
+                }
+                
+                if (imageUrl && validateUrl(imageUrl)) {
+                    const imageExtension = imageUrl.split('.').pop().toLowerCase() || 'jpg';
+                    const imageAttachment = await prepareAttachment(
+                        // imageUrl,
+                        // `custom_artwork_for_${recipientName || 'you'}.${imageExtension}`,
+                        // `image/${imageExtension === 'jpg' ? 'jpeg' : imageExtension}`,
+                        // 'custom-artwork'
+                         imageUrl,
+    `custom_artwork_for_${recipientName || 'you'}.jpg`,
+    'image/jpeg',
+    'custom-artwork' // 👈 same as used in HTML
+                    );
+                    
+                    if (imageAttachment) {
+                        attachments.push(imageAttachment);
+                        console.log('✅ Image attachment added successfully');
+                        giftContent = `
+                            <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; border-left: 4px solid #e91e63; margin: 20px 0;">
+                                <h3 style="color: #e91e63; margin-top: 0;">🎨 Your Custom Artwork</h3>
+                                <div style="text-align: center; margin: 20px 0;">
+                                    <img src="cid:custom-artwork" alt="Your Custom Artwork" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                                </div>
+                                <p style="color: #666; font-style: italic; text-align: center;">
+                                    🎨 This artwork was specially created just for you! The image is also attached to this email.
+                                </p>
+                            </div>
+                        `;
+                    } else {
+                        console.error('❌ Failed to add image attachment');
+                        giftContent = `
+                            <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; border-left: 4px solid #e91e63; margin: 20px 0;">
+                                <h3 style="color: #e91e63; margin-top: 0;">🎨 Your Custom Artwork</h3>
+                                <p style="color: #666; text-align: center;">
+                                    We encountered an issue loading your custom artwork. Please contact the sender for assistance.
+                                </p>
+                            </div>
+                        `;
+                    }
+                } else {
+                    console.error('❌ No valid image URL found for image gift');
+                    giftContent = `
+                        <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; border-left: 4px solid #e91e63; margin: 20px 0;">
+                            <h3 style="color: #e91e63; margin-top: 0;">🎨 Your Custom Artwork</h3>
+                            <p style="color: #666; text-align: center;">
+                                There was an issue preparing your custom artwork. Please contact the sender.
+                            </p>
+                        </div>
+                    `;
+                }
+                break;
+                
+                     case 'voice':
+case 'song':
+    console.log(`🎵 Processing ${giftType.toUpperCase()} gift type`);
+    
+    let audioProcessed = false;
+    if (audioContent) {
+        try {
+            let audioBuffer;
+            let fileExtension = 'mp3';
+            let contentType = 'audio/mpeg';
+
+            if (Buffer.isBuffer(audioContent)) {
+                audioBuffer = audioContent;
+                console.log(`✅ ${giftType} content is already a Buffer`);
+            } else if (typeof audioContent === 'string') {
+                if (audioContent.startsWith('data:audio')) {
+                    // ✅ Base64 data URL
+                    const matches = audioContent.match(/^data:(audio\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+                    if (matches) {
+                        contentType = matches[1];
+                        fileExtension = contentType.split('/')[1] || 'mp3';
+                        audioBuffer = Buffer.from(matches[2], 'base64');
+                        console.log(`✅ Converted base64 ${giftType} to Buffer (${contentType})`);
+                    } else {
+                        console.error("❌ Invalid base64 audio format");
+                    }
+                } else if (validateUrl(audioContent)) {
+                    // ✅ Download from URL
+                    const audioAttachment = await prepareAttachment(
+                        audioContent,
+                        `${giftType}_for_${recipientName || 'you'}.mp3`,
+                        'audio/mpeg'
+                    );
+                    if (audioAttachment) {
+                        audioBuffer = audioAttachment.content;
+                        contentType = audioAttachment.contentType || 'audio/mpeg';
+                        fileExtension = contentType.split('/')[1] || 'mp3';
+                        console.log(`✅ Downloaded ${giftType} from URL (${contentType})`);
+                    } else {
+                        console.error(`❌ Failed to download ${giftType} from URL: ${audioContent}`);
+                    }
+                } else {
+                    // ✅ Handle plain base64 string (without data: prefix)
+                    try {
+                        audioBuffer = Buffer.from(audioContent, 'base64');
+                        console.log(`✅ Converted plain base64 string to Buffer`);
+                    } catch (e) {
+                        console.error("❌ Failed to convert string audio content to Buffer", e.message);
+                    }
+                }
+            }
+
+            if (audioBuffer && audioBuffer.length > 0) {
+                attachments.push({
+                    filename: `${giftType}_for_${recipientName || 'you'}.${fileExtension}`,
+                    content: audioBuffer,
+                    contentType: contentType
+                });
+                console.log(`✅ ${giftType} attachment added successfully`);
+                audioProcessed = true;
+            } else {
+                console.error(`❌ ${giftType} buffer is empty or invalid`);
+            }
+        } catch (audioError) {
+            console.error(`❌ Error processing ${giftType} attachment:`, audioError.message);
+        }
+    } else {
+        console.error(`❌ No audio content found for ${giftType} gift`);
+    }
+    
+    giftContent = `
+        <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; border-left: 4px solid #28a745; margin: 20px 0;">
+            <h3 style="color: #28a745; margin-top: 0;">🎵 Your ${giftType.charAt(0).toUpperCase() + giftType.slice(1)} Message</h3>
+            ${generatedContent ? `
+            <div style="color: #333; line-height: 1.8; font-size: 16px; margin-bottom: 15px;">
+                ${generatedContent.replace(/\n/g, '<br>')}
+            </div>
+            ` : ''}
+            ${audioProcessed ? `
+            <p style="color: #666; font-style: italic;">
+                🎧 Your personalized ${giftType} message is attached to this email. Download and play it to hear your special message!
+            </p>
+            ` : `
+            <p style="color: #666; font-style: italic;">
+                We encountered an issue with your ${giftType} message. Please contact the sender for assistance.
+            </p>
+            `}
+        </div>
+    `;
+    break;
+
+
+
+                
+            default:
+                giftContent = `
+                    <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; border-left: 4px solid #fd7e14; margin: 20px 0;">
+                        <h3 style="color: #fd7e14; margin-top: 0;">🎁 Your Special Gift</h3>
+                        <div style="color: #333; line-height: 1.8; font-size: 16px;">
+                            ${generatedContent ? generatedContent.replace(/\n/g, '<br>') : 'Your personalized gift content'}
+                        </div>
+                    </div>
+                `;
+        }
+        
+        const mailOptions = {
+            from: `${process.env.FROM_NAME || 'Wispwish Team'} <${process.env.FROM_EMAIL || 'trickyboy467@gmail.com'}>`,
+            to: deliveryEmail,
+            subject: `🎁 You've Received a Special ${giftType.charAt(0).toUpperCase() + giftType.slice(1)} Gift!`,
+            html: `
+                <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
+                    <div style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                        <h1 style="color: white; margin: 0; font-size: 28px;">You've Received a Gift! 🎁</h1>
+                    </div>
+                    
+                    <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        <h2 style="color: #333; margin-top: 0;">Dear ${recipientName || 'Friend'}, 💝</h2>
+                        
+                        <p style="color: #666; font-size: 16px; line-height: 1.6;">
+                            ${senderName || 'Someone special'} has created a personalized ${giftType} gift just for you! This ${occasion || 'special'} gift was crafted with love and care.
+                        </p>
+                        
+                        ${giftContent}
+                        
+                        ${senderMessage ? `
+                            <div style="background: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
+                                <h4 style="color: #856404; margin-top: 0;">💌 Personal Message:</h4>
+                                <p style="color: #856404; margin-bottom: 0; font-style: italic;">
+                                    "${senderMessage}"
+                                </p>
+                            </div>
+                        ` : ''}
+                        
+                        <div style="text-align: center; margin: 30px 0;">
+                            <p style="color: #666; font-size: 16px;">
+                                ✨ This gift was created with Wispwish - where every gift tells a story ✨
+                            </p>
+                            <a href="http://127.0.0.1:5500/Frontend/index.html" 
+                               style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                                      color: white; 
+                                      padding: 12px 25px; 
+                                      text-decoration: none; 
+                                      border-radius: 20px; 
+                                      font-weight: bold; 
+                                      display: inline-block; 
+                                      margin-top: 10px;">
+                                🎁 Create Your Own Gift
+                            </a>
+                        </div>
+                        
+                        <p style="color: #666; font-size: 14px; text-align: center; margin-top: 30px;">
+                            Made with ❤️ by Wispwish<br>
+                            The magic of personalized gifting
+                        </p>
+                    </div>
+                </div>
+            `,
+            attachments
+        };
+    
+        console.log(`📧 Sending email with ${attachments.length} attachments:`, attachments.map(a => a.filename));
+        const result = await transporter.sendMail(mailOptions);
+        console.log('✅ Gift email sent successfully:', result.messageId);
+        return { success: true, messageId: result.messageId };
+    } catch (error) {
+        console.error('❌ Error sending gift email:', error.message);
+        return { success: false, error: error.message };
+    }
 };
 
 /**
@@ -565,10 +721,10 @@ const sendPaymentConfirmation = async ({ buyerEmail, giftType, amount, transacti
         };
         
         const result = await transporter.sendMail(mailOptions);
-        console.log('Payment confirmation email sent successfully:', result.messageId);
+        console.log('✅ Payment confirmation email sent successfully:', result.messageId);
         return { success: true, messageId: result.messageId };
     } catch (error) {
-        console.error('Error sending payment confirmation email:', error);
+        console.error('❌ Error sending payment confirmation email:', error.message);
         return { success: false, error: error.message };
     }
 };

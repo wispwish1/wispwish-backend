@@ -56,7 +56,7 @@ const pollTaskStatus = async (taskId, maxAttempts = 20, initialDelay = 5000) => 
   throw new Error(`Task polling failed for taskId: ${taskId}`);
 };
 
-// Generate song using OpenAI for lyrics and Suno AI for audio
+// Generate song using OpenAI for lyrics and ElevenLabs for audio (previously Suno AI)
 const generateSong = async (gift) => {
   const { recipientName, tone, memories = [], genre = 'pop', occasion = 'special occasion' } = gift;
 
@@ -90,99 +90,195 @@ const generateSong = async (gift) => {
     // Track OpenAI usage for lyrics
     await apiTracker.trackAPIUsage('openai', 1, lyrics.length);
 
-    // Validate lyrics length for Suno AI
-    if (lyrics.length > 3000) {
-      throw new Error('Lyrics exceed Suno AI limit of 3000 characters');
+    // Step 2: Generate audio using ElevenLabs instead of Suno AI
+    let voiceIdToUse = 'wyWA56cQNU2KqUW4eCsI'; // Fallback voice ID
+    try {
+      const activeVoice = await VoiceStyle.findOne({ isActive: true });
+      if (activeVoice) voiceIdToUse = activeVoice.voiceId;
+    } catch (e) {
+      console.warn('Failed to get active voice:', e);
     }
 
-    // Step 2: Start audio generation using Suno AI
-    const musicResponse = await axios.post(
-      'https://api.sunoapi.org/api/v1/generate',
+    // ElevenLabs call with voiceIdToUse
+    const voiceResponse = await axios.post(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceIdToUse}`,
       {
-        prompt: lyrics,
-        style: genre,
-        title: title.slice(0, 80),
-        customMode: true,
-        instrumental: false,
-        model: 'V3_5',
-        callBackUrl: 'https://your-app-callback.example.com/callback', // Replace with ngrok or actual URL
+        text: lyrics,
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.5,
+        },
       },
       {
         headers: {
-          'Authorization': `Bearer ${process.env.SUNO_AI_API_KEY}`,
+          'Accept': 'audio/mpeg',
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
+          'xi-api-key': process.env.ELEVENLABS_API_KEY,
         },
+        responseType: 'arraybuffer',
       }
     );
 
-    console.log('Suno AI response:', JSON.stringify(musicResponse.data, null, 2));
-
-    const taskId = musicResponse.data.data?.taskId;
-    if (!taskId) {
-      throw new Error('No task ID in Suno AI response');
-    }
-    console.log(`Task ID received: ${taskId}`);
-
-    // Step 3: Poll for task completion
-    const audioData = await pollTaskStatus(taskId);
-
-    // Fetch audio file to convert to base64
-    const audioResponse = await axios.get(audioData.audio_url, {
-      responseType: 'arraybuffer',
-    });
+    console.log('ElevenLabs response received for song');
+    
+    // Track ElevenLabs usage
+    await apiTracker.trackAPIUsage('elevenlabs', 1, lyrics.length);
 
     return {
       text: lyrics,
-      audio: Buffer.from(audioResponse.data).toString('base64'),
-      taskId,
+      audio: Buffer.from(voiceResponse.data).toString('base64'),
     };
   } catch (error) {
     console.error('Song generation error:', JSON.stringify(error.response?.data || error.message, null, 2));
     
     // Track error
-    await apiTracker.trackAPIUsage('openai', 1, 0, null, true);
+    if (error.message.includes('elevenlabs')) {
+      await apiTracker.trackAPIUsage('elevenlabs', 1, 0, null, true);
+    } else {
+      await apiTracker.trackAPIUsage('openai', 1, 0, null, true);
+    }
     
-    if (error.response?.status === 400) {
-      throw new Error(`Invalid request to Suno AI: ${error.response.data?.msg || error.message}`);
-    }
-    if (error.response?.status === 403) {
-      throw new Error('Failed to authenticate with Suno AI. Please check your API key or contact support.');
-    }
-    if (error.response?.status === 429) {
-      console.warn('Falling back to lyrics-only response due to rate limit (429)');
-      return {
-        text: lyrics,
-        audio: null,
-        warning: 'Audio generation failed due to rate limit. Lyrics provided instead.',
-        taskId,
-      };
-    }
-    if (error.response?.status === 455 || error.response?.status === 503) {
-      console.warn('Falling back to lyrics-only response due to server issues (503/455)');
-      const errorData = error.response?.data || '';
-      if (typeof errorData === 'string' && errorData.includes('Service Suspended')) {
-        throw new Error('Suno AI service is suspended for your account. Please check your account status or contact Suno AI support.');
-      }
-      return {
-        text: lyrics,
-        audio: null,
-        warning: 'Audio generation failed due to server issues. Lyrics provided instead.',
-        taskId,
-      };
-    }
-    if (error.message.includes('Task polling timed out')) {
-      console.warn('Falling back to lyrics-only response due to polling timeout');
-      return {
-        text: lyrics,
-        audio: null,
-        warning: `Audio generation failed due to polling timeout for taskId: ${taskId}. Contact Suno AI support with this task ID.`,
-        taskId,
-      };
-    }
-    throw new Error(`Failed to generate song: ${error.response?.status ? `HTTP ${error.response.status} - ${error.response.data?.msg || error.message}` : error.message}`);
+    return {
+      text: lyrics,
+      audio: null,
+      warning: 'Audio generation failed. Lyrics provided instead.',
+    };
   }
 };
+
+/* Comment out the Suno AI polling function as it's no longer needed
+const pollTaskStatus = async (taskId, maxAttempts = 20, initialDelay = 5000) => {
+  // ... existing code ...
+};
+*/
+
+// Generate song using OpenAI for lyrics and Suno AI for audio
+// const generateSong = async (gift) => {
+//   const { recipientName, tone, memories = [], genre = 'pop', occasion = 'special occasion' } = gift;
+
+//   const memoriesString = memories.length > 0 ? memories.join(', ') : 'a special moment';
+//   const prompt = `Write lyrics for a ${tone} ${genre} song dedicated to ${recipientName} for a ${occasion}. Base it on these memories: ${memoriesString}. Make it suitable for a 30-60 second performance with a catchy chorus and one verse.`;
+//   const title = `${recipientName}'s ${occasion} Song`;
+
+//   let lyrics = 'No lyrics generated';
+
+//   try {
+//     // Step 1: Generate lyrics using OpenAI
+//     const lyricsResponse = await axios.post(
+//       'https://api.openai.com/v1/chat/completions',
+//       {
+//         model: 'gpt-4o-mini',
+//         messages: [{ role: 'user', content: prompt }],
+//         temperature: 0.7,
+//         max_tokens: 300,
+//       },
+//       {
+//         headers: {
+//           'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+//           'Content-Type': 'application/json',
+//         },
+//       }
+//     );
+
+//     lyrics = lyricsResponse.data.choices?.[0]?.message?.content || 'No lyrics generated';
+//     console.log('Generated lyrics:', lyrics);
+    
+//     // Track OpenAI usage for lyrics
+//     await apiTracker.trackAPIUsage('openai', 1, lyrics.length);
+
+//     // Validate lyrics length for Suno AI
+//     if (lyrics.length > 3000) {
+//       throw new Error('Lyrics exceed Suno AI limit of 3000 characters');
+//     }
+
+//     // Step 2: Start audio generation using Suno AI
+//     const musicResponse = await axios.post(
+//       'https://api.sunoapi.org/api/v1/generate',
+//       {
+//         prompt: lyrics,
+//         style: genre,
+//         title: title.slice(0, 80),
+//         customMode: true,
+//         instrumental: false,
+//         model: 'V3_5',
+//         callBackUrl: 'https://your-app-callback.example.com/callback', // Replace with ngrok or actual URL
+//       },
+//       {
+//         headers: {
+//           'Authorization': `Bearer ${process.env.SUNO_AI_API_KEY}`,
+//           'Content-Type': 'application/json',
+//           'Accept': 'application/json',
+//         },
+//       }
+//     );
+
+//     console.log('Suno AI response:', JSON.stringify(musicResponse.data, null, 2));
+
+//     const taskId = musicResponse.data.data?.taskId;
+//     if (!taskId) {
+//       throw new Error('No task ID in Suno AI response');
+//     }
+//     console.log(`Task ID received: ${taskId}`);
+
+//     // Step 3: Poll for task completion
+//     const audioData = await pollTaskStatus(taskId);
+
+//     // Fetch audio file to convert to base64
+//     const audioResponse = await axios.get(audioData.audio_url, {
+//       responseType: 'arraybuffer',
+//     });
+
+//     return {
+//       text: lyrics,
+//       audio: Buffer.from(audioResponse.data).toString('base64'),
+//       taskId,
+//     };
+//   } catch (error) {
+//     console.error('Song generation error:', JSON.stringify(error.response?.data || error.message, null, 2));
+    
+//     // Track error
+//     await apiTracker.trackAPIUsage('openai', 1, 0, null, true);
+    
+//     if (error.response?.status === 400) {
+//       throw new Error(`Invalid request to Suno AI: ${error.response.data?.msg || error.message}`);
+//     }
+//     if (error.response?.status === 403) {
+//       throw new Error('Failed to authenticate with Suno AI. Please check your API key or contact support.');
+//     }
+//     if (error.response?.status === 429) {
+//       console.warn('Falling back to lyrics-only response due to rate limit (429)');
+//       return {
+//         text: lyrics,
+//         audio: null,
+//         warning: 'Audio generation failed due to rate limit. Lyrics provided instead.',
+//         taskId,
+//       };
+//     }
+//     if (error.response?.status === 455 || error.response?.status === 503) {
+//       console.warn('Falling back to lyrics-only response due to server issues (503/455)');
+//       const errorData = error.response?.data || '';
+//       if (typeof errorData === 'string' && errorData.includes('Service Suspended')) {
+//         throw new Error('Suno AI service is suspended for your account. Please check your account status or contact Suno AI support.');
+//       }
+//       return {
+//         text: lyrics,
+//         audio: null,
+//         warning: 'Audio generation failed due to server issues. Lyrics provided instead.',
+//         taskId,
+//       };
+//     }
+//     if (error.message.includes('Task polling timed out')) {
+//       console.warn('Falling back to lyrics-only response due to polling timeout');
+//       return {
+//         text: lyrics,
+//         audio: null,
+//         warning: `Audio generation failed due to polling timeout for taskId: ${taskId}. Contact Suno AI support with this task ID.`,
+//         taskId,
+//       };
+//     }
+//     throw new Error(`Failed to generate song: ${error.response?.status ? `HTTP ${error.response.status} - ${error.response.data?.msg || error.message}` : error.message}`);
+//   }
+// };
 
 // Handle text-based and voice gifts
 const generateContent = async (gift) => {

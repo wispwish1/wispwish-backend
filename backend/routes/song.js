@@ -50,6 +50,8 @@ router.post('/generate', async (req, res) => {
         text: generatedContent.text,
         audio: generatedContent.audio || null,
       },
+      // Add this line to store audio content directly as well
+      audioContent: generatedContent.audio || null,
       price: price || 25,
       relationship: relationship || 'friend',
       occasion: occasion || 'special occasion',

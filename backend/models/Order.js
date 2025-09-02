@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 const OrderSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
   giftId: { type: mongoose.Schema.Types.ObjectId, ref: 'Gift' },
-  type: { type: String, required: true, enum: ['poem', 'voice', 'illustration', 'video', 'image'] },
+  type: { type: String, required: true, enum: ['poem', 'voice', 'illustration', 'video', 'image', 'song'] },
   payment: { type: mongoose.Schema.Types.ObjectId, ref: 'Payment' },
   paymentStatus: { type: String, default: 'pending', enum: ['pending', 'processing', 'completed', 'failed'] },
   price: { type: Number },

@@ -102,6 +102,7 @@ router.post('/generate', authenticateToken, async (req, res) => {
         price: giftDoc.price,
         generatedContent: typeof generatedContent === 'object' ? generatedContent.text : generatedContent,
         buyerName: req.user.name || 'Friend' // Add buyer name if available
+        // audioContent is missing here
       });
       
       if (emailResult.success) {
@@ -434,7 +435,8 @@ router.post('/create', async (req, res) => {
             recipientEmail: deliveryEmail,
             price: giftDoc.price,
             generatedContent: typeof generatedContent === 'object' ? generatedContent.text : generatedContent,
-            buyerName: req.user.name || 'Friend' // Add buyer name if available
+            buyerName: req.user.name || 'Friend', // Add buyer name if available
+            audioContent: giftDoc.audioContent // Add audioContent here
           });
           
           if (emailResult.success) {
