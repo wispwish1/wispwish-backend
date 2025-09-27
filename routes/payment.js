@@ -24,7 +24,7 @@ try {
 
 // Available prices for validation
 // Updated to include more price combinations with add-ons (base prices + add-on prices)
-const VALID_PRICES = [9, 8, 10, 12, 22, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 24, 25, 27, 30, 35]; // Added common combinations with add-ons
+const VALID_PRICES = [5,6,7,9, 8, 10, 12, 22, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 24, 25, 27, 30, 35]; // Added common combinations with add-ons
 
 // Valid payment statuses
 const PAYMENT_STATUSES = {
@@ -77,18 +77,32 @@ router.post('/create-checkout-session', async (req, res) => {
 
     console.log('📝 Payment request received:', { giftId, price, giftType, recipientName, email, userId });
 
-    if (!giftId || !price || !giftType || !recipientName || !email) {
+    if (!giftId || price == null || !giftType || !recipientName || !email) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    if (!VALID_PRICES.includes(parseFloat(price))) {
-      return res.status(400).json({ message: 'Invalid price' });
-    }
-
-    // Fix: Use lean() to get a plain JavaScript object and handle song audioContent
+    // Load gift to check occasion for special pricing rules
     const gift = await Gift.findById(giftId);
     if (!gift) {
       return res.status(404).json({ message: 'Gift not found' });
+    }
+    
+    const numericPrice = parseFloat(price);
+    if (Number.isNaN(numericPrice) || numericPrice <= 0) {
+      return res.status(400).json({ message: 'Invalid price' });
+    }
+
+    // Allow pay-what-you-can for apology (minimum $5 AUD)
+    // For apology gifts, we allow any price >= 5, not just predefined prices
+    if (gift.occasion === 'apology') {
+      if (numericPrice < 5) {
+        return res.status(400).json({ message: 'Minimum price for apology gifts is $5 AUD' });
+      }
+      // For apology gifts, skip the VALID_PRICES check since users can pay what they want
+    } else {
+      if (!VALID_PRICES.includes(numericPrice)) {
+        return res.status(400).json({ message: 'Invalid price' });
+      }
     }
     
     // Fix: Extract audio content from generatedContent for song gifts
@@ -140,7 +154,7 @@ router.post('/create-checkout-session', async (req, res) => {
         userId: userId || null,
         type: giftType,
         paymentStatus: PAYMENT_STATUSES.PENDING,
-        price,
+        price: numericPrice,
       });
       await order.save();
       console.log('✅ New order created:', order._id);
@@ -151,7 +165,7 @@ router.post('/create-checkout-session', async (req, res) => {
       payment = new Payment({
         order: order._id,
         userId: userId || null,
-        amount: price,
+        amount: numericPrice,
         method: 'stripe',
         status: PAYMENT_STATUSES.PENDING,
         stripeSessionId: null,
@@ -162,7 +176,7 @@ router.post('/create-checkout-session', async (req, res) => {
       // Reset existing payment for new session
       payment.status = PAYMENT_STATUSES.PENDING;
       payment.stripeSessionId = null;
-      payment.amount = price; // Update amount in case it changed
+      payment.amount = numericPrice; // Update amount in case it changed
       await payment.save();
       console.log('✅ Existing payment record reset:', payment._id);
     }
@@ -180,7 +194,7 @@ router.post('/create-checkout-session', async (req, res) => {
             product_data: {
               name: `${giftType.charAt(0).toUpperCase() + giftType.slice(1)} Gift`,
             },
-            unit_amount: Math.round(price * 100),
+            unit_amount: Math.round(numericPrice * 100),
           },
           quantity: 1,
         },
@@ -264,6 +278,8 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
     order.paymentStatus = PAYMENT_STATUSES.COMPLETE;
     order.status = 'completed';
     order.completedAt = new Date();
+    // Update the order price to the actual amount charged
+    order.price = session.amount_total / 100;
     await order.save();
     console.log('✅ Order status updated to complete:', order._id);
   }
@@ -275,6 +291,8 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
     if (gift) {
       gift.paymentStatus = PAYMENT_STATUSES.COMPLETE;
       gift.status = 'completed';
+      // Update the gift price to the actual amount charged
+      gift.price = session.amount_total / 100;
       await gift.save();
       console.log('✅ Gift status updated to complete:', gift._id);
     }
@@ -461,6 +479,15 @@ async function updatePaymentStatus(stripeSessionId, status, errorMessage = null)
       if (status === PAYMENT_STATUSES.COMPLETE) {
         order.status = 'completed';
         order.completedAt = new Date();
+        // Update the order price to the actual amount charged
+        if (stripeSessionId) {
+          try {
+            const session = await stripe.checkout.sessions.retrieve(stripeSessionId);
+            order.price = session.amount_total / 100;
+          } catch (error) {
+            console.error('Error retrieving Stripe session for price update:', error.message);
+          }
+        }
       } else if (status === PAYMENT_STATUSES.ERROR) {
         order.status = 'failed';
       }
@@ -474,6 +501,15 @@ async function updatePaymentStatus(stripeSessionId, status, errorMessage = null)
           gift.paymentStatus = status;
           if (status === PAYMENT_STATUSES.COMPLETE) {
             gift.status = 'completed';
+            // Update the gift price to the actual amount charged
+            if (stripeSessionId) {
+              try {
+                const session = await stripe.checkout.sessions.retrieve(stripeSessionId);
+                gift.price = session.amount_total / 100;
+              } catch (error) {
+                console.error('Error retrieving Stripe session for price update:', error.message);
+              }
+            }
           } else if (status === PAYMENT_STATUSES.ERROR) {
             gift.status = 'failed';
           }
@@ -745,6 +781,10 @@ router.post('/sync-payment/:sessionId', async (req, res) => {
         // Send confirmation email if not sent already
         const gift = await Gift.findById(giftId);
         if (gift) {
+          // Update the gift price to the actual amount charged
+          gift.price = session.amount_total / 100;
+          await gift.save();
+          
           await nodemailerService.sendPaymentConfirmation({
             buyerEmail,
             giftType: gift.giftType || 'unknown',
