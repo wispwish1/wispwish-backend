@@ -2,10 +2,11 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
 import apiTracker from './apiTracker.js';
-import mongoose from 'mongoose';
+// import mongoose from 'mongoose';
 import VoiceStyle from '../models/VoiceStyle.js';
 
 dotenv.config();
+// SunoAPI.com API key
 
 // Validate environment variables
 if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'your_openai_api_key_here') {
