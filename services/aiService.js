@@ -578,6 +578,76 @@ const generateContent = async (gift) => {
     }
 };
 
+// const generateVideo = async ({
+//   promptText,
+//   recipientName,
+//   tone = "heartfelt",
+//   memories = [],
+//   occasion = "special occasion"
+// }) => {
+//   console.log("🎬 Starting video generation with AIMLAPI (Kling 2.5 Turbo)...");
+
+//   if (!process.env.AIML_API_KEY) {
+//     throw new Error("AIMLAPI key not configured. Please set AIML_API_KEY in environment variables.");
+//   }
+
+//   const sanitize = (s) =>
+//     (s || "")
+//       .replace(/\*\*|__|\*|#/g, "")
+//       .replace(/\[(.*?)\]|\((.*?)\)/g, "$1")
+//       .replace(/\s+/g, " ")
+//       .trim();
+
+//   const videoPrompt =
+//     promptText && promptText.trim().length > 0
+//       ? sanitize(promptText)
+//       : sanitize(
+//           `A ${tone} cinematic tribute video for ${recipientName}'s ${occasion}, warm lighting, emotional tone, and realistic motion.`
+//         );
+
+//   const body = {
+//     model: "kling-2.5-turbo",
+//     prompt: videoPrompt,
+//     aspect_ratio: "16:9",
+//     duration: 8
+//   };
+
+//   console.log("🎬 Request body:", body);
+
+//   try {
+//     // ✅ Correct AIMLAPI endpoint for video generation
+//     const response = await axios.post(
+//       "https://api.aimlapi.com/v1/videos/generations",
+//       body,
+//       {
+//         headers: {
+//           Authorization: `Bearer ${process.env.AIML_API_KEY}`,
+//           "Content-Type": "application/json"
+//         },
+//         timeout: 120000
+//       }
+//     );
+
+//     console.log("🎬 Response:", response.data);
+
+//     const videoUrl = response.data?.data?.[0]?.url || response.data?.output?.video_url;
+
+//     if (!videoUrl) {
+//       throw new Error("Video URL not found in response.");
+//     }
+
+//     console.log("🎬 ✅ Video generated successfully:", videoUrl);
+//     return { videoUrl };
+
+//   } catch (error) {
+//     console.error("🎬 Video generation error:", error.response?.data || error.message);
+//     throw new Error(`Video generation failed: ${error.message}`);
+//   }
+// };
+
+// Generate WishKnot animated SVG and message
+
+
 const generateVideo = async ({
   promptText,
   recipientName,
@@ -585,12 +655,20 @@ const generateVideo = async ({
   memories = [],
   occasion = "special occasion"
 }) => {
-  console.log("🎬 Starting video generation with AIMLAPI (Kling 2.5 Turbo)...");
+  console.log("🎬 Starting video generation with RunwayML (veo3)...");
+  console.log("🎬 API Key available:", !!process.env.RUNWAY_API_KEY);
 
-  if (!process.env.AIML_API_KEY) {
-    throw new Error("AIMLAPI key not configured. Please set AIML_API_KEY in environment variables.");
+  // Validate API key
+  if (
+    !process.env.RUNWAY_API_KEY ||
+    process.env.RUNWAY_API_KEY === "your_runway_api_key_here"
+  ) {
+    throw new Error(
+      "RunwayML API key not configured. Please check your environment variables."
+    );
   }
 
+  // Sanitize prompt
   const sanitize = (s) =>
     (s || "")
       .replace(/\*\*|__|\*|#/g, "")
@@ -602,50 +680,119 @@ const generateVideo = async ({
     promptText && promptText.trim().length > 0
       ? sanitize(promptText)
       : sanitize(
-          `A ${tone} cinematic tribute video for ${recipientName}'s ${occasion}, warm lighting, emotional tone, and realistic motion.`
+          `A ${tone} cinematic tribute video for ${recipientName}'s ${occasion}, with warm lighting, emotional atmosphere, soft bokeh, natural motion.`
         );
 
+  console.log("🎬 Video prompt:", videoPrompt);
+
+  // function shortenPrompt(prompt) {
+  //   if (prompt.length <= 1000) return prompt;
+  //   const summary = prompt
+  //     .split(".")
+  //     .slice(0, 6)
+  //     .join(".") + "...";
+  //   return summary.slice(0, 995);
+  // }
+
   const body = {
-    model: "kling-2.5-turbo",
-    prompt: videoPrompt,
-    aspect_ratio: "16:9",
-    duration: 8
+    // promptText: shortenPrompt(videoPrompt), // correct field name
+    promptText: videoPrompt, // correct field name
+    model: "veo3",
+    ratio: "1280:720",    // landscape mode, must be either "1280:720" or "720:1280"
+    duration: 8,           // veo3 requires exactly 8 seconds
+    seed: Math.floor(Math.random() * 4294967295),
+    watermark: false,
+    motion: 1
   };
 
   console.log("🎬 Request body:", body);
 
   try {
-    // ✅ Correct AIMLAPI endpoint for video generation
+    // Create task
     const response = await axios.post(
-      "https://api.aimlapi.com/v1/videos/generations",
+      "https://api.dev.runwayml.com/v1/text_to_video",
       body,
       {
         headers: {
-          Authorization: `Bearer ${process.env.AIML_API_KEY}`,
-          "Content-Type": "application/json"
+          Authorization: `Bearer ${process.env.RUNWAY_API_KEY}`,
+          "Content-Type": "application/json",
+          "X-Runway-Version": "2024-11-06"
         },
-        timeout: 120000
+        timeout: 30000
       }
     );
 
-    console.log("🎬 Response:", response.data);
+    const taskId = response.data?.id;
+    if (!taskId) throw new Error("Failed to create RunwayML task.");
 
-    const videoUrl = response.data?.data?.[0]?.url || response.data?.output?.video_url;
+    console.log("🎬 Task created:", taskId);
 
-    if (!videoUrl) {
-      throw new Error("Video URL not found in response.");
+    // Polling
+    let videoUrl = null;
+    const maxAttempts = 30;
+    let attempt = 0;
+    let delay = 5000;
+
+    while (attempt < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      attempt++;
+
+      const poll = await axios.get(
+        `https://api.dev.runwayml.com/v1/tasks/${taskId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.RUNWAY_API_KEY}`,
+            "X-Runway-Version": "2024-11-06"
+          },
+          timeout: 15000
+        }
+      );
+
+      const status = poll.data?.status;
+      console.log(`🎬 [${attempt}] Status:`, status);
+
+      if (status === "SUCCEEDED") {
+        videoUrl = poll.data?.output?.[0];
+        console.log("🎬 ✅ Video ready:", videoUrl);
+        break;
+      }
+      if (status === "FAILED") {
+        const errMsg = poll.data?.error || "RunwayML failed unexpectedly.";
+        throw new Error(errMsg);
+      }
+
+      delay = Math.min(delay * 1.2, 15000);
     }
 
-    console.log("🎬 ✅ Video generated successfully:", videoUrl);
-    return { videoUrl };
+    if (!videoUrl) {
+      throw new Error("Video generation timed out. Please try later.");
+    }
 
+    return { videoUrl };
   } catch (error) {
     console.error("🎬 Video generation error:", error.response?.data || error.message);
+
+    if (error.response?.status === 400) {
+      throw new Error(`Invalid request: ${JSON.stringify(error.response.data)}`);
+    }
+    if (error.response?.status === 401) {
+      throw new Error("Invalid API key or unauthorized request.");
+    }
+    if (error.response?.status === 403) {
+      throw new Error("Access denied. Check your plan or permissions.");
+    }
+    if (error.response?.status === 429) {
+      throw new Error("Rate limit exceeded. Try again later.");
+    }
+    if (error.response?.status === 500) {
+      throw new Error("RunwayML internal error — retry.");
+    }
+
     throw new Error(`Video generation failed: ${error.message}`);
   }
 };
 
-// Generate WishKnot animated SVG and message
+
 const generateWishknot = async ({ recipientName, tone = 'heartfelt', occasion = 'special occasion', memories = [], senderMessage = '', relationship = 'friend' }) => {
   try {
     // Generate personalized message using OpenAI
