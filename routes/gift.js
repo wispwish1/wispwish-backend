@@ -55,6 +55,7 @@ router.post('/generate', optionalAuth, async (req, res) => {
       voiceStyleId,
       scheduledTimezone,
       scheduledOffsetMinutes,
+      language // Add language parameter
     } = req.body;
 
     // Handle combo gift type (Full Experience) - generate all components
@@ -70,7 +71,8 @@ router.post('/generate', optionalAuth, async (req, res) => {
           tone,
           memories: memories || [],
           relationship,
-          occasion
+          occasion,
+          language // Pass language parameter
         }),
         aiService.generateContent({
           giftType: 'voice',
@@ -78,7 +80,8 @@ router.post('/generate', optionalAuth, async (req, res) => {
           tone,
           memories: memories || [],
           relationship,
-          occasion
+          occasion,
+          language // Pass language parameter
         }),
         aiService.generateContent({
           giftType: 'illustration',
@@ -86,7 +89,8 @@ router.post('/generate', optionalAuth, async (req, res) => {
           tone,
           memories: memories || [],
           relationship,
-          occasion
+          occasion,
+          language // Pass language parameter
         }),
         aiService.generateContent({
           giftType: 'video',
@@ -94,7 +98,8 @@ router.post('/generate', optionalAuth, async (req, res) => {
           tone,
           memories: memories || [],
           relationship,
-          occasion
+          occasion,
+          language // Pass language parameter
         })
       ]);
       
@@ -119,6 +124,7 @@ router.post('/generate', optionalAuth, async (req, res) => {
         memories: memories || [],
         relationship,
         occasion,
+        language, // Pass language parameter
         voiceStyleId,
       });
     }

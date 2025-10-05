@@ -63,9 +63,9 @@ const wishKnotSchema = new mongoose.Schema({
   
   relationship: {
     type: String,
-    // required: false,
+    required: false,
     default: 'friend',
-    enum: ['friend', 'family','mother', 'brother', 'sister', 'father', 'colleague', 'customer', 'partner', 'teammate', 'mentor', 'teacher', 'coach', 'co-worker', 'colleague' ],
+    // Removed enum to allow dynamic user input
   },
   
   occasion: {

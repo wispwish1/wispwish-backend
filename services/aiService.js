@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 import dotenv from 'dotenv';
 import apiTracker from './apiTracker.js';
@@ -177,10 +176,28 @@ const pollTaskStatus = async (taskId, maxAttempts = 10, initialDelay = 15000) =>
 // Generate song using OpenAI for lyrics and Suno API for audio (fallback to ElevenLabs)
 const generateSong = async (gift) => {
   console.log('🎵 Starting song generation for:', gift);
-  const { recipientName, tone, memories = [], genre = 'pop', occasion = 'special occasion' } = gift;
+  const { recipientName, tone, memories = [], genre = 'pop', occasion = 'special occasion', language = 'en' } = gift;
+
+  // Map language codes to full names for OpenAI
+  const languageMap = {
+    'en': 'English',
+    'es': 'Spanish',
+    'fr': 'French',
+    'de': 'German',
+    'it': 'Italian',
+    'pt': 'Portuguese',
+    'zh': 'Chinese',
+    'ja': 'Japanese',
+    'ko': 'Korean',
+    'hi': 'Hindi',
+    'ar': 'Arabic',
+    'ru': 'Russian'
+  };
+  
+  const languageName = languageMap[language] || 'English';
 
   const memoriesString = memories.length > 0 ? memories.join(', ') : 'a special moment';
-  const prompt = `Write lyrics for a ${tone} ${genre} song dedicated to ${recipientName} for a ${occasion}. Base it on these memories: ${memoriesString}. Make it suitable for a 30-60 second performance with a catchy chorus and one verse.`;
+  const prompt = `Write lyrics in ${languageName} for a ${tone} ${genre} song dedicated to ${recipientName} for a ${occasion}. Base it on these memories: ${memoriesString}. Make it suitable for a 30-60 second performance with a catchy chorus and one verse.`;
 
   let lyrics = 'No lyrics generated';
 
@@ -347,149 +364,40 @@ const pollTaskStatus = async (taskId, maxAttempts = 20, initialDelay = 5000) => 
 };
 */
 
-// Generate song using OpenAI for lyrics and Suno AI for audio
-// const generateSong = async (gift) => {
-//   const { recipientName, tone, memories = [], genre = 'pop', occasion = 'special occasion' } = gift;
-
-//   const memoriesString = memories.length > 0 ? memories.join(', ') : 'a special moment';
-//   const prompt = `Write lyrics for a ${tone} ${genre} song dedicated to ${recipientName} for a ${occasion}. Base it on these memories: ${memoriesString}. Make it suitable for a 30-60 second performance with a catchy chorus and one verse.`;
-//   const title = `${recipientName}'s ${occasion} Song`;
-
-//   let lyrics = 'No lyrics generated';
-
-//   try {
-//     // Step 1: Generate lyrics using OpenAI
-//     const lyricsResponse = await axios.post(
-//       'https://api.openai.com/v1/chat/completions',
-//       {
-//         model: 'gpt-4o-mini',
-//         messages: [{ role: 'user', content: prompt }],
-//         temperature: 0.7,
-//         max_tokens: 300,
-//       },
-//       {
-//         headers: {
-//           'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-//           'Content-Type': 'application/json',
-//         },
-//       }
-//     );
-
-//     lyrics = lyricsResponse.data.choices?.[0]?.message?.content || 'No lyrics generated';
-//     console.log('Generated lyrics:', lyrics);
-    
-//     // Track OpenAI usage for lyrics
-//     await apiTracker.trackAPIUsage('openai', 1, lyrics.length);
-
-//     // Validate lyrics length for Suno AI
-//     if (lyrics.length > 3000) {
-//       throw new Error('Lyrics exceed Suno AI limit of 3000 characters');
-//     }
-
-//     // Step 2: Start audio generation using Suno AI
-//     const musicResponse = await axios.post(
-//       'https://api.sunoapi.org/api/v1/generate',
-//       {
-//         prompt: lyrics,
-//         style: genre,
-//         title: title.slice(0, 80),
-//         customMode: true,
-//         instrumental: false,
-//         model: 'V3_5',
-//         callBackUrl: 'https://your-app-callback.example.com/callback', // Replace with ngrok or actual URL
-//       },
-//       {
-//         headers: {
-//           'Authorization': `Bearer ${process.env.SUNO_AI_API_KEY}`,
-//           'Content-Type': 'application/json',
-//           'Accept': 'application/json',
-//         },
-//       }
-//     );
-
-//     console.log('Suno AI response:', JSON.stringify(musicResponse.data, null, 2));
-
-//     const taskId = musicResponse.data.data?.taskId;
-//     if (!taskId) {
-//       throw new Error('No task ID in Suno AI response');
-//     }
-//     console.log(`Task ID received: ${taskId}`);
-
-//     // Step 3: Poll for task completion
-//     const audioData = await pollTaskStatus(taskId);
-
-//     // Fetch audio file to convert to base64
-//     const audioResponse = await axios.get(audioData.audio_url, {
-//       responseType: 'arraybuffer',
-//     });
-
-//     return {
-//       text: lyrics,
-//       audio: Buffer.from(audioResponse.data).toString('base64'),
-//       taskId,
-//     };
-//   } catch (error) {
-//     console.error('Song generation error:', JSON.stringify(error.response?.data || error.message, null, 2));
-    
-//     // Track error
-//     await apiTracker.trackAPIUsage('openai', 1, 0, null, true);
-    
-//     if (error.response?.status === 400) {
-//       throw new Error(`Invalid request to Suno AI: ${error.response.data?.msg || error.message}`);
-//     }
-//     if (error.response?.status === 403) {
-//       throw new Error('Failed to authenticate with Suno AI. Please check your API key or contact support.');
-//     }
-//     if (error.response?.status === 429) {
-//       console.warn('Falling back to lyrics-only response due to rate limit (429)');
-//       return {
-//         text: lyrics,
-//         audio: null,
-//         warning: 'Audio generation failed due to rate limit. Lyrics provided instead.',
-//         taskId,
-//       };
-//     }
-//     if (error.response?.status === 455 || error.response?.status === 503) {
-//       console.warn('Falling back to lyrics-only response due to server issues (503/455)');
-//       const errorData = error.response?.data || '';
-//       if (typeof errorData === 'string' && errorData.includes('Service Suspended')) {
-//         throw new Error('Suno AI service is suspended for your account. Please check your account status or contact Suno AI support.');
-//       }
-//       return {
-//         text: lyrics,
-//         audio: null,
-//         warning: 'Audio generation failed due to server issues. Lyrics provided instead.',
-//         taskId,
-//       };
-//     }
-//     if (error.message.includes('Task polling timed out')) {
-//       console.warn('Falling back to lyrics-only response due to polling timeout');
-//       return {
-//         text: lyrics,
-//         audio: null,
-//         warning: `Audio generation failed due to polling timeout for taskId: ${taskId}. Contact Suno AI support with this task ID.`,
-//         taskId,
-//       };
-//     }
-//     throw new Error(`Failed to generate song: ${error.response?.status ? `HTTP ${error.response.status} - ${error.response.data?.msg || error.message}` : error.message}`);
-//   }
-
 // Handle text-based and voice gifts
 const generateContent = async (gift) => {
-  const { giftType, recipientName, tone, memories = [], occasion = 'special occasion' } = gift;
+  const { giftType, recipientName, tone, memories = [], occasion = 'special occasion', language = 'en' } = gift;
+
+  // Map language codes to full names for OpenAI
+  const languageMap = {
+    'en': 'English',
+    'es': 'Spanish',
+    'fr': 'French',
+    'de': 'German',
+    'it': 'Italian',
+    'pt': 'Portuguese',
+    'zh': 'Chinese',
+    'ja': 'Japanese',
+    'ko': 'Korean',
+    'hi': 'Hindi',
+    'ar': 'Arabic',
+    'ru': 'Russian'
+  };
+  
+  const languageName = languageMap[language] || 'English';
 
   let prompt = '';
   let textContent = '';
 
   switch (giftType) {
     case 'poem':
-      prompt = `Write a ${tone} poem for ${recipientName} for a ${occasion} based on these memories: ${memories.join(', ')}.`;
+      prompt = `Write a ${tone} poem in ${languageName} for ${recipientName} for a ${occasion} based on these memories: ${memories.join(', ')}.`;
       break;
     case 'letter':
-      prompt = `Write a heartfelt letter to ${recipientName} in a ${tone} tone for a ${occasion}. Include these moments: ${memories.join(', ')}.`;
+      prompt = `Write a heartfelt letter in ${languageName} to ${recipientName} in a ${tone} tone for a ${occasion}. Include these moments: ${memories.join(', ')}.`;
       break;
     case 'shortStory':
-      prompt = `Create a short story inspired by ${recipientName} with the theme: ${tone}, for a ${occasion}, and these memories: ${memories.join(', ')}.`;
+      prompt = `Create a short story in ${languageName} inspired by ${recipientName} with the theme: ${tone}, for a ${occasion}, and these memories: ${memories.join(', ')}.`;
       break;
     case 'wishknot':
       console.log('🪢 Generating WishKnot...');
@@ -500,7 +408,8 @@ const generateContent = async (gift) => {
           occasion: gift.occasion || 'special occasion',
           memories: gift.memories || [],
           senderMessage: gift.senderMessage || '',
-          relationship: gift.relationship || 'friend'
+          relationship: gift.relationship || 'friend',
+          language: languageName // Pass language to WishKnot
         });
         console.log('✅ WishKnot generated successfully');
         return wishknotResult;
@@ -526,16 +435,16 @@ const generateContent = async (gift) => {
       }
       break;
     case 'voice':
-      prompt = `Write a short, ${tone} voice message for ${recipientName} for a ${occasion} based on these memories: ${memories.join(', ')}. Keep it concise, suitable for a 30-60 second audio clip.`;
+      prompt = `Write a short, ${tone} voice message in ${languageName} for ${recipientName} for a ${occasion} based on these memories: ${memories.join(', ')}. Keep it concise, suitable for a 30-60 second audio clip.`;
       break;
     case 'illustration':
-      prompt = `Write a ${tone} descriptive text for an artistic illustration dedicated to ${recipientName} for a ${occasion}, inspired by these memories: ${memories.join(', ')}. Include visual elements and emotional themes.`;
+      prompt = `Write a ${tone} descriptive text in ${languageName} for an artistic illustration dedicated to ${recipientName} for a ${occasion}, inspired by these memories: ${memories.join(', ')}. Include visual elements and emotional themes.`;
       break;
     case 'video':
-      prompt = `Write a ${tone} script for a short video tribute to ${recipientName} for a ${occasion}, based on these memories: ${memories.join(', ')}. Include narration text and visual descriptions suitable for a 1-2 minute video.`;
+      prompt = `Write a ${tone} script in ${languageName} for a short video tribute to ${recipientName} for a ${occasion}, based on these memories: ${memories.join(', ')}. Include narration text and visual descriptions suitable for a 1-2 minute video.`;
       break;
     default:
-      prompt = `Write a thoughtful message for ${recipientName} for a ${occasion}.`;
+      prompt = `Write a thoughtful message in ${languageName} for ${recipientName} for a ${occasion}.`;
       break;
   }
 
@@ -669,151 +578,70 @@ const generateContent = async (gift) => {
     }
 };
 
-// Generate short tribute video via RunwayML (polling, returns hosted URL)
-const generateVideo = async ({ promptText, recipientName, tone = 'heartfelt', memories = [], occasion = 'special occasion' }) => {
-  console.log('🎬 Starting video generation with RunwayML...');
-  console.log('🎬 API Key available:', !!process.env.RUNWAY_API_KEY);
-  console.log('🎬 API Key length:', process.env.RUNWAY_API_KEY?.length || 0);
-  
-  // Validate API key
-  if (!process.env.RUNWAY_API_KEY || process.env.RUNWAY_API_KEY === 'your_runway_api_key_here') {
-    console.warn('🎬 RunwayML API key not configured properly');
-    throw new Error('RunwayML API key not configured. Please check environment variables. Contact support for video generation setup.');
-  }
-  
-  // Sanitize and constrain prompt per Runway limits (< 1000 chars)
-  const sanitize = (s) => (s || '')
-    .replace(/\*\*|__|\*|#/g, '')
-    .replace(/\[(.*?)\]|\((.*?)\)/g, '$1')
-    .replace(/\s+/g, ' ')
-    .trim();
-  let basePrompt = promptText && promptText.trim().length > 0
-    ? sanitize(promptText)
-    : sanitize(`A ${tone} tribute video for ${recipientName} (${occasion}), inspired by: ${memories.join(', ') || 'a special moment'}. Warm cinematic style, soft bokeh, gentle camera movements, 6 seconds.`);
-  if (basePrompt.length > 950) basePrompt = basePrompt.slice(0, 950) + '...';
-  
-  console.log('🎬 Video prompt:', basePrompt);
-  
-  try {
-    // Step 1: Submit video generation request
-    let response;
-    let taskId;
-    
-    // Try different model variants - updated models for better reliability
-    const modelVariants = ['veo3' , 'gen4_aleph'];  // Removed deprecated gen3_alpha
-    // const modelVariants = ['veo3'];  // Removed deprecated gen3_alpha
-    let lastError = null;
-    
-    for (const model of modelVariants) {
-      try {
-        console.log(`🎬 Trying RunwayML model: ${model}`);
-        response = await axios.post(
-          'https://api.dev.runwayml.com/v1/text_to_video',
-          {
-            promptText: basePrompt,
-            model: model,
-            ratio: '1280:720',
-            duration: model === 'veo3' ? 8 : 6, // veo3 requires 8 seconds, others use 6
-            seed: Math.floor(Math.random() * 4294967295)
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${process.env.RUNWAY_API_KEY}`,
-              'Content-Type': 'application/json',
-              'X-Runway-Version': '2024-11-06',
-            },
-            timeout: 30000
-          }
-        );
-        
-        taskId = response.data.id;
-        if (taskId) {
-          console.log(`🎬 Success with model ${model}, task ID:`, taskId);
-          break; // Success, exit loop
-        }
-      } catch (modelError) {
-        console.log(`🎬 Model ${model} failed:`, modelError.response?.data?.error || modelError.message);
-        lastError = modelError;
-        continue; // Try next model
-      }
-    }
-    
-    if (!taskId) {
-      throw lastError || new Error('All RunwayML models failed');
-    }
-    
-    console.log('🎬 Video task created with ID:', taskId);
+const generateVideo = async ({
+  promptText,
+  recipientName,
+  tone = "heartfelt",
+  memories = [],
+  occasion = "special occasion"
+}) => {
+  console.log("🎬 Starting video generation with AIMLAPI (Kling 2.5 Turbo)...");
 
-    // Step 2: Poll for completion with progressive delays
-    const maxAttempts = 30;
-    let attempt = 0;
-    let delay = 5000; // Start with 5 seconds
-    
-    while (attempt < maxAttempts) {
-      await new Promise(r => setTimeout(r, delay));
-      
-      try {
-        const taskResponse = await axios.get(`https://api.dev.runwayml.com/v1/tasks/${taskId}`, {
-          headers: {
-            Authorization: `Bearer ${process.env.RUNWAY_API_KEY}`,
-            'X-Runway-Version': '2024-11-06',
-          },
-          timeout: 15000 // 15 second timeout for polling requests
-        });
-        
-        const status = taskResponse.data.status;
-        console.log(`🎬 Video task status (attempt ${attempt + 1}):`, status);
-        
-        if (status === 'SUCCEEDED') {
-          const videoUrl = taskResponse.data.output?.[0];
-          if (!videoUrl) {
-            throw new Error('Video generation completed but no video URL was provided');
-          }
-          console.log('🎬 Video generated successfully:', videoUrl);
-          await apiTracker.trackAPIUsage('runwayml_video', 1, 0);
-          return { videoUrl };
-        }
-        
-        if (status === 'FAILED') {
-          const errorMsg = taskResponse.data.error || 'Video generation failed without specific error message';
-          throw new Error(`RunwayML video generation failed: ${errorMsg}`);
-        }
-        
-        // Continue polling for PENDING/RUNNING status
-        attempt++;
-        delay = Math.min(delay * 1.2, 15000); // Progressive delay, max 15 seconds
-        
-      } catch (pollError) {
-        if (pollError.code === 'ECONNABORTED') {
-          console.warn(`🎬 Polling timeout on attempt ${attempt + 1}, retrying...`);
-        } else {
-          console.error(`🎬 Polling error on attempt ${attempt + 1}:`, pollError.message);
-        }
-        attempt++;
-        delay = Math.min(delay * 1.2, 15000);
+  if (!process.env.AIML_API_KEY) {
+    throw new Error("AIMLAPI key not configured. Please set AIML_API_KEY in environment variables.");
+  }
+
+  const sanitize = (s) =>
+    (s || "")
+      .replace(/\*\*|__|\*|#/g, "")
+      .replace(/\[(.*?)\]|\((.*?)\)/g, "$1")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const videoPrompt =
+    promptText && promptText.trim().length > 0
+      ? sanitize(promptText)
+      : sanitize(
+          `A ${tone} cinematic tribute video for ${recipientName}'s ${occasion}, warm lighting, emotional tone, and realistic motion.`
+        );
+
+  const body = {
+    model: "kling-2.5-turbo",
+    prompt: videoPrompt,
+    aspect_ratio: "16:9",
+    duration: 8
+  };
+
+  console.log("🎬 Request body:", body);
+
+  try {
+    // ✅ Correct AIMLAPI endpoint for video generation
+    const response = await axios.post(
+      "https://api.aimlapi.com/v1/videos/generations",
+      body,
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.AIML_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        timeout: 120000
       }
+    );
+
+    console.log("🎬 Response:", response.data);
+
+    const videoUrl = response.data?.data?.[0]?.url || response.data?.output?.video_url;
+
+    if (!videoUrl) {
+      throw new Error("Video URL not found in response.");
     }
-    
-    throw new Error(`Video generation timed out after ${maxAttempts} attempts. This may take longer than expected - please try again later.`);
-    
+
+    console.log("🎬 ✅ Video generated successfully:", videoUrl);
+    return { videoUrl };
+
   } catch (error) {
-    console.error('🎬 RunwayML video generation error:', error.response?.data || error.message);
-    await apiTracker.trackAPIUsage('runwayml_video', 1, 0, null, true);
-    
-    // Provide specific error messages based on error type
-    if (error.response?.status === 401) {
-      throw new Error('RunwayML API authentication failed. Please check the API key configuration.');
-    } else if (error.response?.status === 429) {
-      throw new Error('RunwayML API rate limit exceeded. Please try again later.');
-    } else if (error.response?.status === 400) {
-      throw new Error(`Invalid video generation request: ${error.response.data?.error || error.message}`);
-    } else if (error.response?.status === 403) {
-      throw new Error('RunwayML API access denied. Please check your subscription status and API key permissions. Contact RunwayML support if needed.');
-    } else if (error.code === 'ECONNABORTED') {
-      throw new Error('RunwayML API request timed out. The service may be experiencing high load.');
-    } else {
-      throw new Error(`Video generation failed: ${error.message}`);
-    }
+    console.error("🎬 Video generation error:", error.response?.data || error.message);
+    throw new Error(`Video generation failed: ${error.message}`);
   }
 };
 
@@ -1179,7 +1007,25 @@ const createUntieAnimation = (knotStyle) => {
 const generateImages = async (gift) => {
   console.log('generateImages called with gift:', gift);
 
-  const { giftType, recipientName = 'Someone', tone = 'heartfelt', memories = [], occasion = 'special occasion' } = gift || {};
+  const { giftType, recipientName = 'Someone', tone = 'heartfelt', memories = [], occasion = 'special occasion', language = 'en' } = gift || {};
+
+  // Map language codes to full names
+  const languageMap = {
+    'en': 'English',
+    'es': 'Spanish',
+    'fr': 'French',
+    'de': 'German',
+    'it': 'Italian',
+    'pt': 'Portuguese',
+    'zh': 'Chinese',
+    'ja': 'Japanese',
+    'ko': 'Korean',
+    'hi': 'Hindi',
+    'ar': 'Arabic',
+    'ru': 'Russian'
+  };
+  
+  const languageName = languageMap[language] || 'English';
 
   if (!giftType || !recipientName) {
     console.error('generateImages: Missing required fields', { giftType, recipientName });
@@ -1188,8 +1034,8 @@ const generateImages = async (gift) => {
 
   const memoriesString = memories.length > 0 ? memories.join(', ') : 'a special moment';
   
-  // Create two different prompts for variety
-  const basePrompt = `A visual representation of a ${tone} scene for ${recipientName} at a ${occasion}, inspired by: ${memoriesString}`;
+  // Create two different prompts for variety with language specification
+  const basePrompt = `A visual representation in ${languageName} of a ${tone} scene for ${recipientName} at a ${occasion}, inspired by: ${memoriesString}`;
   const prompts = [
     `${basePrompt}. Artistic style, warm colors.`,
     `${basePrompt}. Different artistic interpretation, vibrant colors.`
@@ -1287,170 +1133,4 @@ const generateImages = async (gift) => {
   }
 };
 
-// generateImages function with enhanced throttling handling
-
-
-// const generateImages = async (gift) => {
-//   console.log('generateImages called with gift:', gift);
-
-//   const { giftType, recipientName = 'Someone', tone = 'heartfelt', memories = [], occasion = 'special occasion' } = gift || {};
-
-//   if (!giftType || !recipientName) {
-//     console.error('generateImages: Missing required fields', { giftType, recipientName });
-//     throw new Error('giftType and recipientName are required');
-//   }
-
-//   const memoriesString = memories.length > 0 ? memories.join(', ') : 'a special moment';
-  
-//   // *** CHANGE: Temporarily generate only one image to reduce API load ***
-//   const basePrompt = `A visual representation of a ${tone} scene for ${recipientName} at a ${occasion}, inspired by: ${memoriesString}`;
-//   const prompts = [
-//     `${basePrompt}. Artistic style, warm colors.`,
-//     // `${basePrompt}. Different artistic interpretation, vibrant colors.` // Commented out second prompt
-//   ];
-
-//   console.log('Generated prompts:', prompts);
-
-//   try {
-//     const images = [];
-//     for (const [index, prompt] of prompts.entries()) {
-//       let retryCount = 0;
-//       const maxRetries = 3;
-//       // *** CHANGE: Increased initial retry delay to 20 seconds ***
-//       let retryDelay = 20000;
-
-//       while (retryCount <= maxRetries) {
-//         try {
-//           console.log(`Generating image ${index + 1} with prompt:`, prompt);
-//           const response = await axios.post(
-//             'https://api.dev.runwayml.com/v1/text_to_image',
-//             {
-//               promptText: prompt,
-//               model: 'gen4_image',
-//               ratio: '1280:720',
-//               seed: Math.floor(Math.random() * 4294967295)
-//             },
-//             {
-//               headers: {
-//                 Authorization: `Bearer ${process.env.RUNWAY_API_KEY}`,
-//                 'Content-Type': 'application/json',
-//                 'X-Runway-Version': '2024-11-06',
-//               },
-//               timeout: 30000
-//             }
-//           );
-
-//           console.log(`Runway ML response ${index + 1}:`, response.data);
-          
-//           await apiTracker.trackAPIUsage('runwayml', 1, 0);
-
-//           const taskId = response.data.id;
-//           if (!taskId) {
-//             throw new Error(`No task ID received from Runway ML for image ${index + 1}`);
-//           }
-
-//           // Poll for task completion
-//           const maxAttempts = 20;
-//           let attempt = 0;
-//           let delay = 20000; // *** CHANGE: Increased polling delay to 20 seconds ***
-
-//           while (attempt < maxAttempts) {
-//             await new Promise(resolve => setTimeout(resolve, delay));
-            
-//             try {
-//               const taskResponse = await axios.get(
-//                 `https://api.dev.runwayml.com/v1/tasks/${taskId}`,
-//                 {
-//                   headers: {
-//                     Authorization: `Bearer ${process.env.RUNWAY_API_KEY}`,
-//                     'X-Runway-Version': '2024-11-06',
-//                   },
-//                   timeout: 15000
-//                 }
-//               );
-
-//               console.log(`Task status check ${attempt + 1} for image ${index + 1}:`, taskResponse.data);
-
-//               if (taskResponse.data.status === 'SUCCEEDED') {
-//                 const imageUrl = taskResponse.data.output?.[0];
-//                 if (!imageUrl) {
-//                   throw new Error(`No image URL in response for image ${index + 1}`);
-//                 }
-//                 images.push({
-//                   _id: Math.random().toString(36).substring(2, 15),
-//                   url: imageUrl,
-//                 });
-//                 break;
-//               } else if (taskResponse.data.status === 'FAILED') {
-//                 throw new Error(`Image generation task failed for image ${index + 1}`);
-//               } else if (taskResponse.data.status === 'THROTTLED') {
-//                 // *** CHANGE: Log detailed error and check Retry-After header ***
-//                 console.warn(`THROTTLED status for image ${index + 1}, response:`, JSON.stringify(taskResponse.data, null, 2));
-//                 throw new Error('THROTTLED');
-//               }
-//               attempt++;
-//               delay = Math.min(delay * 1.2, 30000); // *** CHANGE: Increased max polling delay to 30 seconds ***
-//             } catch (pollError) {
-//               if (pollError.message === 'THROTTLED' || pollError.response?.data?.status === 'THROTTLED') {
-//                 retryCount++;
-//                 if (retryCount > maxRetries) {
-//                   throw new Error(`Max retries (${maxRetries}) reached for THROTTLED error on image ${index + 1}`);
-//                 }
-//                 // *** CHANGE: Use Retry-After header if available ***
-//                 const retryAfter = pollError.response?.headers['retry-after'];
-//                 retryDelay = retryAfter ? parseInt(retryAfter) * 1000 : Math.min(retryDelay * 2, 120000); // Max 120 seconds
-//                 console.warn(`Retrying image ${index + 1} after THROTTLED error, attempt ${retryCount}/${maxRetries}, delay: ${retryDelay / 1000}s`);
-//                 await new Promise(resolve => setTimeout(resolve, retryDelay));
-//                 continue;
-//               }
-//               console.error(`Task polling error attempt ${attempt + 1} for image ${index + 1}:`, pollError.response?.data || pollError.message);
-//               attempt++;
-//               delay = Math.min(delay * 1.2, 30000);
-//             }
-//           }
-
-//           if (attempt >= maxAttempts) {
-//             throw new Error(`Task polling timed out for image ${index + 1}`);
-//           }
-//           break;
-//         } catch (error) {
-//           if (error.message === 'THROTTLED' || error.response?.data?.status === 'THROTTLED') {
-//             retryCount++;
-//             if (retryCount > maxRetries) {
-//               throw new Error(`Max retries (${maxRetries}) reached for THROTTLED error on image ${index + 1}`);
-//             }
-//             const retryAfter = error.response?.headers['retry-after'];
-//             retryDelay = retryAfter ? parseInt(retryAfter) * 1000 : Math.min(retryDelay * 2, 120000);
-//             console.warn(`Retrying image ${index + 1} after THROTTLED error, attempt ${retryCount}/${maxRetries}, delay: ${retryDelay / 1000}s`);
-//             await new Promise(resolve => setTimeout(resolve, retryDelay));
-//             continue;
-//           }
-//           throw error;
-//         }
-//       }
-//     }
-
-//     console.log('Generated images:', images);
-//     return images;
-//   } catch (error) {
-//     console.error('Runway ML API error:', error.response?.data || error.message);
-//     await apiTracker.trackAPIUsage('runwayml', 1, 0, null, true);
-    
-//     // *** CHANGE: Return fallback result for throttling ***
-//     if (error.message.includes('THROTTLED')) {
-//       console.warn('Falling back to text-only response due to persistent throttling');
-//       const textContent = `A ${tone} illustration description for ${recipientName} at a ${occasion}, inspired by: ${memoriesString}.`;
-//       return {
-//         text: textContent,
-//         images: [],
-//         type: 'illustration',
-//         warning: 'Image generation failed due to API rate limiting. Contact RunwayML support with task ID: ' + (error.response?.data?.id || 'unknown')
-//       };
-//     }
-    
-//     throw new Error('Failed to generate images: ' + (error.response?.data?.error || error.message));
-//   }
-// };
-
-
-  export default { generateSong, generateContent, generateImages, pollTaskStatus };
+export default { generateSong, generateContent, generateImages, pollTaskStatus };

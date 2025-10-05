@@ -19,6 +19,7 @@ router.post('/generate', async (req, res) => {
       deliveryEmail,
       scheduledDate,
       price,
+      language // Add language parameter
     } = req.body;
 
     console.log('🎵 Received /api/song/generate request:', req.body);
@@ -39,6 +40,7 @@ router.post('/generate', async (req, res) => {
       memories: memories || [],
       genre: genre || 'pop',
       occasion: occasion || 'special occasion',
+      language: language || 'en' // Pass language parameter
     });
 
     console.log('✅ Song generation completed:', {

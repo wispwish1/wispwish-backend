@@ -25,7 +25,12 @@ router.post('/generate', async (req, res) => {
     console.log('Received /api/artwork/generate request:', req.body);
 
     if (gift.giftType === 'image' || gift.giftType === 'illustration') {
-      const images = await aiService.generateImages(gift);
+      // Pass the language parameter to generateImages
+      const images = await aiService.generateImages({
+        ...gift,
+        language: gift.language || 'en' // Add language parameter
+      });
+      
       const giftDoc = new Gift({
         giftType: gift.giftType,
         senderName: gift.senderName || 'Someone special',
@@ -39,7 +44,7 @@ router.post('/generate', async (req, res) => {
         senderMessage: gift.senderMessage || '',
         occasion: gift.occasion || 'special occasion',
         relationship: gift.relationship || 'friend',
-        scheduledDate: gift.scheduledDate ? new Date(gift.scheduledDate) : undefined, // یہ line add کریں
+        scheduledDate: gift.scheduledDate ? new Date(gift.scheduledDate) : undefined,
         scheduledTimezone: gift.scheduledTimezone || '',
         scheduledOffsetMinutes: typeof gift.scheduledOffsetMinutes === 'number' ? gift.scheduledOffsetMinutes : (new Date().getTimezoneOffset() * -1),
         price: getPrice(gift.giftType)
