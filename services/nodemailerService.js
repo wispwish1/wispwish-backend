@@ -3,6 +3,7 @@ import path from 'path';
 import axios from 'axios';
 import validator from 'validator';
 import nodemailer from 'nodemailer';
+import sgTransport from "nodemailer-sendgrid";
 
 /**
  * Create Nodemailer transporter
@@ -29,9 +30,13 @@ const createTransporter = () => {
         port: 587,
         secure: false,
         auth: {
-            user: process.env.EMAIL_USER || 'trickyboy467@gmail.com',
-            pass: process.env.EMAIL_PASS || 'vbjo vrbc jxvs pihv'
-        }
+            user: process.env.EMAIL_USER || '1wispwish@gmail.com',
+            pass: process.env.EMAIL_PASS || 'flbr uarb mduy srrk'
+        },
+        tls: {
+    rejectUnauthorized: false // avoid some certificate errors
+  },
+  timeout: 100000 // Timeout increased to 100 seconds
     });
 };
 
