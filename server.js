@@ -20,10 +20,12 @@ dotenv.config();
 const app = express();
 
 // Middleware
+
 app.use(cors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:5500', 'http://127.0.0.1:5501' , 'https://wispwish.com', 'https://www.wispwish.com'],
-    credentials: true,
+  origin: ['http://localhost:3000', 'http://127.0.0.1:5500', 'http://127.0.0.1:5501', 'https://wispwish.com', 'https://www.wispwish.com'],
+  credentials: true,
 }));
+
 
 // IMPORTANT: Webhook route MUST be before express.json() middleware
 app.use('/api/payment/webhook', express.raw({ type: 'application/json' }));
