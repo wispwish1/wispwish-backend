@@ -3,7 +3,7 @@ import path from 'path';
 import axios from 'axios';
 import validator from 'validator';
 import nodemailer from 'nodemailer';
-import sgTransport from "nodemailer-sendgrid";
+// import sgTransport from "nodemailer-sendgrid";
 
 /**
  * Create Nodemailer transporter
