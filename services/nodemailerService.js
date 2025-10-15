@@ -207,7 +207,7 @@ const generateWishKnotConfirmationSection = async (orderData) => {
                     <small>Preview how your WishKnot will appear to the recipient:</small>
                 </p>
                 <div style="text-align: center; margin: 10px 0;">
-                    <a href="${process.env.BASE_URL || 'http://127.0.0.1:5500'}/wishknot-view.html?giftId=${orderData.giftId || 'preview'}&preview=true" 
+                    <a href="${process.env.BASE_URL || 'https://www.wispwish.com'}/wishknot-view.html?giftId=${orderData.giftId || 'preview'}&preview=true" 
                        style="background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%); 
                               color: white; 
                               padding: 8px 16px; 
@@ -407,7 +407,7 @@ const sendWishKnotEmail = async ({
               </p>
               
               ${!isScheduled ? `
-                <a href="${viewUrl || `${process.env.BASE_URL || 'http://127.0.0.1:5500'}/wishknot-view.html?giftId=${giftId}&token=${accessToken}`}" class="email-untie-button">
+                <a href="${viewUrl || `${process.env.BASE_URL || 'https://www.wispwish.com'}/wishknot-view.html?giftId=${giftId}&token=${accessToken}`}" class="email-untie-button">
                   🪢 Open WishKnot Viewer
                 </a>
               ` : `
@@ -480,7 +480,7 @@ const sendWelcomeEmail = async (userEmail, userName) => {
                         </div>
                         
                         <div style="text-align: center; margin: 30px 0;">
-                            <a href="http://127.0.0.1:5500/Frontend/generator.html" 
+                            <a href="https://www.wispwish.com/Frontend/generator.html" 
                                style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                                       color: white; 
                                       padding: 15px 30px; 
@@ -821,7 +821,7 @@ const sendOrderConfirmation = async (userEmail, orderData) => {
                         </div>
                         
                         <div style="text-align: center; margin: 30px 0;">
-                            <a href="http://127.0.0.1:5500/Frontend/index.html" 
+                            <a href="https://www.wispwish.com/Frontend/index.html" 
                                style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                                       color: white; 
                                       padding: 15px 30px; 

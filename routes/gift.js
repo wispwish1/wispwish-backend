@@ -523,7 +523,7 @@ router.post('/update-payment/:orderId', async (req, res) => {
                 occasion: gift.occasion,
                 giftId: gift._id,
                 accessToken: wishKnot.accessToken,
-                viewUrl: `${process.env.BASE_URL || 'http://127.0.0.1:5500'}/wishknot-view.html?giftId=${gift._id}&token=${wishKnot.accessToken}`,
+                viewUrl: `${process.env.BASE_URL || 'https://www.wispwish.com'}/wishknot-view.html?giftId=${gift._id}&token=${wishKnot.accessToken}`,
                 scheduledRevealDate: wishKnot.scheduledRevealDate
               });
               
