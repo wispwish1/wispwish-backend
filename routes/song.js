@@ -1,10 +1,35 @@
 import express from 'express';
 import aiService from '../services/aiService.js';
 import Gift from '../models/Gift.js';
+import Order from '../models/Order.js';
+import Payment from '../models/Payment.js';
+import nodemailerService from '../services/nodemailerService.js';
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
 
 const router = express.Router();
 
-router.post('/generate', async (req, res) => {
+// Optional authentication middleware (same behavior as gift route)
+const optionalAuth = async (req, res, next) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (token) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+      const user = await User.findById(decoded.userId).select('-password');
+      if (user) {
+        req.user = user;
+      }
+    }
+
+    next();
+  } catch (error) {
+    next();
+  }
+};
+
+router.post('/generate', optionalAuth, async (req, res) => {
   try {
     const {
       giftType,
@@ -15,11 +40,15 @@ router.post('/generate', async (req, res) => {
       relationship,
       occasion,
       senderMessage,
+      senderName,
       deliveryMethod,
       deliveryEmail,
       scheduledDate,
       price,
-      language // Add language parameter
+      language, // Add language parameter
+      buyerEmail,
+      scheduledTimezone,
+      scheduledOffsetMinutes
     } = req.body;
 
     console.log('🎵 Received /api/song/generate request:', req.body);
@@ -68,15 +97,15 @@ router.post('/generate', async (req, res) => {
       },
       // Store audio content directly if available for email functionality
       audioContent: generatedContent.audio || null,
-      price: price || 25,
+      price: price || 10,
       relationship: relationship || 'friend',
       occasion: occasion || 'special occasion',
       senderMessage: senderMessage || '',
       deliveryMethod: deliveryMethod || '',
       deliveryEmail: deliveryEmail || '',
       scheduledDate: scheduledDate ? new Date(scheduledDate) : undefined,
-      scheduledTimezone: req.body.scheduledTimezone || '',
-      scheduledOffsetMinutes: typeof req.body.scheduledOffsetMinutes === 'number' ? req.body.scheduledOffsetMinutes : (new Date().getTimezoneOffset() * -1),
+      scheduledTimezone: scheduledTimezone || '',
+      scheduledOffsetMinutes: typeof scheduledOffsetMinutes === 'number' ? scheduledOffsetMinutes : (new Date().getTimezoneOffset() * -1),
     });
 
     // If scheduled for future, mark as scheduled at creation time
@@ -88,8 +117,119 @@ router.post('/generate', async (req, res) => {
       }
     } catch {}
 
-    await giftDoc.save();
-    console.log('💾 Gift saved to database with ID:', giftDoc._id);
+    // Save gift with retry logic for database timeouts
+    let saveAttempts = 0;
+    const maxSaveAttempts = 5; // Increase retry attempts
+    
+    while (saveAttempts < maxSaveAttempts) {
+      try {
+        await giftDoc.save();
+        console.log('💾 Gift saved to database with ID:', giftDoc._id);
+        break; // Success, exit the loop
+      } catch (saveError) {
+        saveAttempts++;
+        console.error(`❌ Database save attempt ${saveAttempts} failed:`, saveError.message);
+        
+        if (saveAttempts >= maxSaveAttempts) {
+          throw new Error(`Failed to save gift to database after ${maxSaveAttempts} attempts: ${saveError.message}`);
+        }
+        
+        // Wait before retrying with longer delays
+        await new Promise(resolve => setTimeout(resolve, 2000 * saveAttempts));
+      }
+    }
+
+    // Create Payment and Order (align with gift flow)
+    const userId = req.user?.id || null;
+    const userEmail = req.user?.email || buyerEmail || 'guest@example.com';
+    const userName = req.user?.name || senderName || 'Guest';
+
+    let payment, order;
+    
+    // Save payment with retry logic
+    saveAttempts = 0;
+    while (saveAttempts < maxSaveAttempts) {
+      try {
+        payment = new Payment({
+          amount: giftDoc.price,
+          userId,
+          method: 'stripe',
+          status: 'pending',
+          buyerEmail: userEmail,
+          buyerName: userName,
+        });
+
+        await payment.save();
+        break; // Success, exit the loop
+      } catch (saveError) {
+        saveAttempts++;
+        console.error(`❌ Payment save attempt ${saveAttempts} failed:`, saveError.message);
+        
+        if (saveAttempts >= maxSaveAttempts) {
+          throw new Error(`Failed to save payment after ${maxSaveAttempts} attempts: ${saveError.message}`);
+        }
+        
+        // Wait before retrying with longer delays
+        await new Promise(resolve => setTimeout(resolve, 2000 * saveAttempts));
+      }
+    }
+
+    // Save order with retry logic
+    saveAttempts = 0;
+    while (saveAttempts < maxSaveAttempts) {
+      try {
+        order = new Order({
+          userId,
+          giftId: giftDoc._id,
+          type: giftType,
+          payment: payment._id,
+          paymentStatus: 'pending',
+          price: giftDoc.price
+        });
+
+        await order.save();
+        break; // Success, exit the loop
+      } catch (saveError) {
+        saveAttempts++;
+        console.error(`❌ Order save attempt ${saveAttempts} failed:`, saveError.message);
+        
+        if (saveAttempts >= maxSaveAttempts) {
+          throw new Error(`Failed to save order after ${maxSaveAttempts} attempts: ${saveError.message}`);
+        }
+        
+        // Wait before retrying with longer delays
+        await new Promise(resolve => setTimeout(resolve, 2000 * saveAttempts));
+      }
+    }
+
+    // Send order confirmation email to BUYER
+    try {
+      if (userEmail && userEmail !== 'guest@example.com') {
+        console.log('Sending confirmation email to buyer:', userEmail);
+        const emailResult = await nodemailerService.sendOrderConfirmation(userEmail, {
+          orderId: order._id.toString().slice(-6),
+          giftType,
+          recipientName,
+          recipientEmail: deliveryEmail,
+          price: giftDoc.price,
+          generatedContent: generatedContent?.text || generatedContent?.lyrics || '',
+          audioContent: generatedContent?.audioUrl || (generatedContent?.audio ? `data:audio/mpeg;base64,${generatedContent.audio}` : null),
+          buyerName: userName,
+          giftId: giftDoc._id
+        });
+
+        if (emailResult.success) {
+          console.log('Order confirmation email sent to buyer successfully:', emailResult.messageId);
+        } else {
+          console.error('Failed to send order confirmation email to buyer:', emailResult.error);
+        }
+      } else {
+        console.log('No valid buyer email available for confirmation');
+      }
+    } catch (emailError) {
+      console.error('Error sending order confirmation to buyer:', emailError);
+      // Continue without failing the request
+    }
 
     // Return structured response for frontend
     const response = {
@@ -106,6 +246,7 @@ router.post('/generate', async (req, res) => {
       },
       taskId: generatedContent.taskId || null,
       warning: generatedContent.warning || null,
+      orderId: order._id
     };
 
     console.log('📤 Sending response to frontend:', {
@@ -119,6 +260,23 @@ router.post('/generate', async (req, res) => {
   } catch (error) {
     console.error('❌ Error in /api/song/generate:', error.message);
     console.error('Error stack:', error.stack);
+    
+    // Handle database timeout errors specifically
+    if (error.name === 'MongoNetworkTimeoutError' || error.message.includes('timed out') || error.message.includes('connection')) {
+      return res.status(504).json({
+        success: false,
+        message: 'Database connection timed out. The song was generated successfully but we had trouble saving it. Please try again.',
+        error: 'database_timeout',
+        // Include the generated content so frontend can handle it gracefully
+        generatedContent: {
+          text: generatedContent?.text || generatedContent?.lyrics || '',
+          lyrics: generatedContent?.lyrics || generatedContent?.text || '',
+          audioUrl: generatedContent?.audioUrl || null,
+          duration: generatedContent?.duration || null,
+          taskId: generatedContent?.taskId || null
+        }
+      });
+    }
     
     // Handle specific error types
     if (error.message.includes('HTTP 403') || error.message.includes('authenticate')) {
@@ -185,6 +343,16 @@ router.get('/task/:taskId', async (req, res) => {
     });
   } catch (error) {
     console.error(`Error in /api/song/task/${req.params.taskId}:`, JSON.stringify(error.response?.data || error.message, null, 2));
+    
+    // Handle database timeout errors
+    if (error.name === 'MongoNetworkTimeoutError' || error.message.includes('timed out') || error.message.includes('connection')) {
+      return res.status(504).json({ 
+        message: 'Database connection timed out while updating gift. Please try again.', 
+        taskId: req.params.taskId,
+        error: 'database_timeout'
+      });
+    }
+    
     res.status(500).json({ message: error.message, taskId: req.params.taskId });
   }
 });

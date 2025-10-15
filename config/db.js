@@ -11,13 +11,32 @@ export const connectDB = async () => {
     }
     
     const conn = await mongoose.connect(mongoUri, {
-      serverSelectionTimeoutMS: 30000, // 30 seconds
-      socketTimeoutMS: 45000, // 45 seconds
+      serverSelectionTimeoutMS: 60000, // 60 seconds
+      socketTimeoutMS: 120000, // 120 seconds
+      maxPoolSize: 15, // Maintain up to 15 socket connections
+      minPoolSize: 5, // Minimum number of sockets to keep open
+      retryWrites: true, // Enable retryable writes
+      connectTimeoutMS: 60000, // Connection timeout
+      heartbeatFrequencyMS: 10000, // Heartbeat frequency
     });
     
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+    
+    // Handle connection events
+    mongoose.connection.on('error', (err) => {
+      console.error(`❌ MongoDB Connection Error: ${err.message}`);
+    });
+    
+    mongoose.connection.on('disconnected', () => {
+      console.log('📡 MongoDB Disconnected');
+    });
+    
+    mongoose.connection.on('reconnected', () => {
+      console.log('🔄 MongoDB Reconnected');
+    });
+    
   } catch (error) {
-    console.error(`❌ MongoDB Error: ${error.message}`);
+    console.error(`❌ MongoDB Connection Failed: ${error.message}`);
     process.exit(1); // Exit if DB fails
   }
 };

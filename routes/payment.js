@@ -200,8 +200,8 @@ router.post('/create-checkout-session', async (req, res) => {
         },
       ],
       mode: 'payment',
-      success_url: `http://127.0.0.1:5500/giftgenerator.html?session_id={CHECKOUT_SESSION_ID}&gift_id=${giftId}&payment_success=true`,
-      cancel_url: 'http://127.0.0.1:5500/giftgenerator.html?payment_cancelled=true',
+      success_url: `https://www.wispwish.com/giftgenerator.html?session_id={CHECKOUT_SESSION_ID}&gift_id=${giftId}&payment_success=true`,
+      cancel_url: 'https://www.wispwish.com/giftgenerator.html?payment_cancelled=true',
       metadata: { giftId, buyerEmail: email, userId: userId || 'guest', paymentId: payment._id.toString() },
     });
 

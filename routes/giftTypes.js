@@ -48,9 +48,12 @@ export const initializeGiftTypes = async () => {
   if (count === 0) {
     const defaultGiftTypes = [
       { name: 'poem', price: 8, description: 'AI-generated poem' },
-      { name: 'voice', price: 12, description: 'Personalized voice message' },
-      { name: 'image', price: 15, description: 'Custom artwork' },
-      { name: 'song', price: 25, description: 'Personalized song' },
+      { name: 'voice', price: 10, description: 'Personalized voice message' },
+      { name: 'image', price: 10, description: 'Custom artwork' },
+      { name: 'song', price: 10, description: 'Personalized song' },
+      { name: 'video', price: 12, description: 'Personalized video' },
+      { name: 'wisknot', price: 9, description: 'Personalized wisknot' },
+      { name: 'combo', price: 22, description: 'combination of multiple gifts' },
     ];
     await GiftType.insertMany(defaultGiftTypes);
     console.log('Default gift types initialized');

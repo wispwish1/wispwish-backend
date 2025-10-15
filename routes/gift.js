@@ -228,8 +228,27 @@ router.post('/generate', optionalAuth, async (req, res) => {
       }
     } catch {}
 
-    await giftDoc.save();
-    console.log('Gift saved with audioContent:', !!giftDoc.audioContent);
+    // Save gift with retry logic for database timeouts
+    let saveAttempts = 0;
+    const maxSaveAttempts = 5; // Increase retry attempts
+    
+    while (saveAttempts < maxSaveAttempts) {
+      try {
+        await giftDoc.save();
+        console.log('Gift saved with audioContent:', !!giftDoc.audioContent);
+        break; // Success, exit the loop
+      } catch (saveError) {
+        saveAttempts++;
+        console.error(`❌ Database save attempt ${saveAttempts} failed:`, saveError.message);
+        
+        if (saveAttempts >= maxSaveAttempts) {
+          throw new Error(`Failed to save gift to database after ${maxSaveAttempts} attempts: ${saveError.message}`);
+        }
+        
+        // Wait before retrying with longer delays
+        await new Promise(resolve => setTimeout(resolve, 2000 * saveAttempts));
+      }
+    }
     
     // Create WishKnot record for WishKnot gifts
     let wishKnotData = null;
@@ -250,6 +269,7 @@ router.post('/generate', optionalAuth, async (req, res) => {
           relationship: relationship || 'friend',
           occasion: occasion || 'special occasion',
           senderMessage,
+          language, // Store language parameter
           scheduledRevealDate: scheduledDate ? new Date(scheduledDate) : null,
           visualMetadata: formattedContent.metadata || {}
         });
@@ -275,27 +295,64 @@ router.post('/generate', optionalAuth, async (req, res) => {
     const userEmail = req.user?.email || buyerEmail || 'guest@example.com';
     const userName = req.user?.name || senderName || 'Guest';
 
-    const payment = new Payment({
-      amount: giftDoc.price,
-      userId,
-      method: 'stripe',
-      status: 'pending',
-      buyerEmail: userEmail,
-      buyerName: userName,
-    });
+    let payment, order;
+    
+    // Save payment with retry logic
+    let paymentSaveAttempts = 0;
+    
+    while (paymentSaveAttempts < maxSaveAttempts) {
+      try {
+        payment = new Payment({
+          amount: giftDoc.price,
+          userId,
+          method: 'stripe',
+          status: 'pending',
+          buyerEmail: userEmail,
+          buyerName: userName,
+        });
 
-    await payment.save();
+        await payment.save();
+        break; // Success, exit the loop
+      } catch (saveError) {
+        paymentSaveAttempts++;
+        console.error(`❌ Payment save attempt ${paymentSaveAttempts} failed:`, saveError.message);
+        
+        if (paymentSaveAttempts >= maxSaveAttempts) {
+          throw new Error(`Failed to save payment after ${maxSaveAttempts} attempts: ${saveError.message}`);
+        }
+        
+        // Wait before retrying with longer delays
+        await new Promise(resolve => setTimeout(resolve, 2000 * paymentSaveAttempts));
+      }
+    }
 
-    const order = new Order({
-      userId,
-      giftId: giftDoc._id,
-      type: giftType,
-      payment: payment._id,
-      paymentStatus: 'pending',
-      price: giftDoc.price
-    });
+    // Save order with retry logic
+    let orderSaveAttempts = 0;
+    while (orderSaveAttempts < maxSaveAttempts) {
+      try {
+        order = new Order({
+          userId,
+          giftId: giftDoc._id,
+          type: giftType,
+          payment: payment._id,
+          paymentStatus: 'pending',
+          price: giftDoc.price
+        });
 
-    await order.save();
+        await order.save();
+        break; // Success, exit the loop
+      } catch (saveError) {
+        orderSaveAttempts++;
+        console.error(`❌ Order save attempt ${orderSaveAttempts} failed:`, saveError.message);
+        
+        if (orderSaveAttempts >= maxSaveAttempts) {
+          throw new Error(`Failed to save order after ${maxSaveAttempts} attempts: ${saveError.message}`);
+        }
+        
+        // Wait before retrying with longer delays
+        await new Promise(resolve => setTimeout(resolve, 2000 * orderSaveAttempts));
+      }
+    }
 
     // Send order confirmation email to BUYER
     try {
@@ -318,7 +375,7 @@ router.post('/generate', optionalAuth, async (req, res) => {
         } else {
           console.error('Failed to send order confirmation email to buyer:', emailResult.error);
         }
-      } else {
+      } else {  
         console.log('No valid buyer email available for confirmation');
       }
     } catch (emailError) {
@@ -343,6 +400,15 @@ router.post('/generate', optionalAuth, async (req, res) => {
     res.json(response);
   } catch (error) {
     console.error('Error in /api/gift/generate:', error);
+    
+    // Handle database timeout errors
+    if (error.name === 'MongoNetworkTimeoutError' || error.message.includes('timed out') || error.message.includes('connection')) {
+      return res.status(504).json({ 
+        message: 'Database connection timed out. The gift was generated successfully but we had trouble saving it. Please try again.', 
+        error: 'database_timeout'
+      });
+    }
+    
     // Send a more detailed error message to help with debugging
     res.status(500).json({ 
       message: 'Failed to generate gift. Please try again.', 

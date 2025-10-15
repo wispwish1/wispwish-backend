@@ -127,7 +127,7 @@ const fetchSunoTaskOnce = async (taskId) => {
 };
 
 // Poll task status with exponential backoff (SunoAPI.com takes 15-25 seconds)
-const pollTaskStatus = async (taskId, maxAttempts = 10, initialDelay = 15000) => {
+const pollTaskStatus = async (taskId, maxAttempts = 10, initialDelay = 25000) => {
   const startTime = Date.now();
   const maxWaitTime = 5 * 60 * 1000; // 5 minutes maximum
   
@@ -409,7 +409,7 @@ const generateContent = async (gift) => {
           memories: gift.memories || [],
           senderMessage: gift.senderMessage || '',
           relationship: gift.relationship || 'friend',
-          language: languageName // Pass language to WishKnot
+          language: language // Pass language code to WishKnot
         });
         console.log('✅ WishKnot generated successfully');
         return wishknotResult;
@@ -793,10 +793,28 @@ const generateVideo = async ({
 };
 
 
-const generateWishknot = async ({ recipientName, tone = 'heartfelt', occasion = 'special occasion', memories = [], senderMessage = '', relationship = 'friend' }) => {
+const generateWishknot = async ({ recipientName, tone = '', occasion = 'special occasion', memories = [], senderMessage = '', relationship = '', language = 'en' }) => {
   try {
+    // Map language codes to full names for OpenAI
+    const languageMap = {
+      'en': 'English',
+      'es': 'Spanish',
+      'fr': 'French',
+      'de': 'German',
+      'it': 'Italian',
+      'pt': 'Portuguese',
+      'zh': 'Chinese',
+      'ja': 'Japanese',
+      'ko': 'Korean',
+      'hi': 'Hindi',
+      'ar': 'Arabic',
+      'ru': 'Russian'
+    };
+    
+    const languageName = languageMap[language] || 'English';
+    
     // Generate personalized message using OpenAI
-    const personalizedPrompt = `Create a deeply personal and symbolic WishKnot message for ${recipientName}. 
+    const personalizedPrompt = `Create a deeply personal and symbolic WishKnot message for ${recipientName} in ${languageName}.
     
     Context:
     - Occasion: ${occasion}

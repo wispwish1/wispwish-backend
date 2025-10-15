@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import nodemailer from "nodemailer";
 import path from 'path';
 import cookieParser from 'cookie-parser';
 import { connectDB } from './config/db.js';
@@ -73,6 +74,47 @@ app.get('/video-player.html', (req, res) => {
 // Serve WishKnot viewer
 app.get('/wishknot-view.html', (req, res) => {
     res.sendFile(path.resolve('../wishknot-view.html'));
+});
+
+// Email Route
+app.post("/send-email", async (req, res) => {
+  const { name, email, subject, message, category, priority } = req.body;
+
+  try {
+    // Create transporter
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+           user: process.env.EMAIL_USER, 
+           pass: process.env.EMAIL_PASS    // 🔹 use Gmail App Password (not normal password)
+      }
+    });
+
+    // Email content
+    const mailOptions = {
+      from: email,
+      // to: "yourgmail@gmail.com", // 🔹 your receiving address
+      to: process.env.EMAIL_USER,
+      subject: `New Contact Message from ${name} - ${subject}`,
+      html: `
+        <h3>New Message from Wispwish Contact Form</h3>
+        <p><strong>Name:</strong> ${name}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Category:</strong> ${category}</p>
+        <p><strong>Priority:</strong> ${priority}</p>
+        <p><strong>Message:</strong></p>
+        <p>${message}</p>
+      `
+    };
+
+    // Send Email
+    await transporter.sendMail(mailOptions);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error sending email:", error);
+    res.json({ success: false, error });
+  }
 });
 
 // Start Server

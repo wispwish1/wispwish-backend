@@ -147,6 +147,12 @@ const wishKnotSchema = new mongoose.Schema({
   senderMessage: {
     type: String,
     default: ''
+  },
+  
+  // Language for the WishKnot message
+  language: {
+    type: String,
+    default: 'en'
   }
 }, {
   timestamps: true

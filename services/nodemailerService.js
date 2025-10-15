@@ -30,7 +30,7 @@ const createTransporter = () => {
         secure: false,
         auth: {
             user: process.env.EMAIL_USER || '1wispwish@gmail.com',
-            pass: process.env.EMAIL_PASS || 'flbr uarb mduy srrk'
+            pass: process.env.EMAIL_PASS || 'vbjo vrbc jxvs pihv'  // Updated app password
         },
         tls: {
     rejectUnauthorized: false // avoid some certificate errors

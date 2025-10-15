@@ -11,8 +11,8 @@ const router = express.Router();
 // Helper function to get price based on gift type
 function getPrice(giftType) {
   const prices = {
-    'image': 12,
-    'illustration': 15,  // Add illustration pricing
+    'image': 10,
+    'illustration': 10,
     'poem': 8,
     'voice': 10
   };
@@ -70,18 +70,55 @@ router.post('/generate', async (req, res) => {
         status: 'pending'
       });
       
-      await payment.save();
+      // Save payment with retry logic
+      let saveAttempts = 0;
+      const maxSaveAttempts = 5; // Increase retry attempts
       
-      const order = new Order({
-        userId: userId,
-        giftId: giftDoc._id,
-        type: gift.giftType,
-        payment: payment._id,
-        paymentStatus: 'pending',
-        price: giftDoc.price
-      });
+      while (saveAttempts < maxSaveAttempts) {
+        try {
+          await payment.save();
+          break; // Success, exit the loop
+        } catch (saveError) {
+          saveAttempts++;
+          console.error(`❌ Payment save attempt ${saveAttempts} failed:`, saveError.message);
+          
+          if (saveAttempts >= maxSaveAttempts) {
+            throw new Error(`Failed to save payment after ${maxSaveAttempts} attempts: ${saveError.message}`);
+          }
+          
+          // Wait before retrying with longer delays
+          await new Promise(resolve => setTimeout(resolve, 2000 * saveAttempts));
+        }
+      }
       
-      await order.save();
+      let order;
+      // Save order with retry logic
+      saveAttempts = 0;
+      while (saveAttempts < maxSaveAttempts) {
+        try {
+          order = new Order({
+            userId: userId,
+            giftId: giftDoc._id,
+            type: gift.giftType,
+            payment: payment._id,
+            paymentStatus: 'pending',
+            price: giftDoc.price
+          });
+          
+          await order.save();
+          break; // Success, exit the loop
+        } catch (saveError) {
+          saveAttempts++;
+          console.error(`❌ Order save attempt ${saveAttempts} failed:`, saveError.message);
+          
+          if (saveAttempts >= maxSaveAttempts) {
+            throw new Error(`Failed to save order after ${maxSaveAttempts} attempts: ${saveError.message}`);
+          }
+          
+          // Wait before retrying with longer delays
+          await new Promise(resolve => setTimeout(resolve, 2000 * saveAttempts));
+        }
+      }
 
       // Note: Order confirmation email will be sent after image selection
       console.log('Images generated, waiting for user selection before sending confirmation email');
@@ -97,6 +134,15 @@ router.post('/generate', async (req, res) => {
     }
   } catch (error) {
     console.error('Error in /api/artwork/generate:', error.message);
+    
+    // Handle database timeout errors
+    if (error.name === 'MongoNetworkTimeoutError' || error.message.includes('timed out') || error.message.includes('connection')) {
+      return res.status(504).json({ 
+        message: 'Database connection timed out. The artwork was generated successfully but we had trouble saving it. Please try again.', 
+        error: 'database_timeout'
+      });
+    }
+    
     res.status(500).json({ message: error.message });
   }
 });
@@ -180,6 +226,15 @@ router.post('/select', async (req, res) => {
     });
   } catch (error) {
     console.error('Error in /api/artwork/select:', error.message);
+    
+    // Handle database timeout errors
+    if (error.name === 'MongoNetworkTimeoutError' || error.message.includes('timed out') || error.message.includes('connection')) {
+      return res.status(504).json({ 
+        message: 'Database connection timed out while selecting image. Please try again.', 
+        error: 'database_timeout'
+      });
+    }
+    
     res.status(500).json({ message: error.message });
   }
 });

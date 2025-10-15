@@ -21,7 +21,8 @@ router.post('/create', async (req, res) => {
       occasion = 'special occasion',
       memories = [],
       senderMessage = '',
-      scheduledRevealDate = null
+      scheduledRevealDate = null,
+      language = 'en'
     } = req.body;
 
     // Validate required fields
@@ -49,7 +50,8 @@ router.post('/create', async (req, res) => {
       memories,
       relationship,
       occasion,
-      senderMessage
+      senderMessage,
+      language // Pass language parameter
     });
 
     console.log('🪢 WishKnot content generated:', wishknotContent);
@@ -68,6 +70,7 @@ router.post('/create', async (req, res) => {
       relationship,
       occasion,
       senderMessage,
+      language, // Store language parameter
       scheduledRevealDate: scheduledRevealDate ? new Date(scheduledRevealDate) : null,
       visualMetadata: wishknotContent.metadata || {}
     });
