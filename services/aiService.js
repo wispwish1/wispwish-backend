@@ -1,4 +1,4 @@
-import axios from 'axios';
+﻿import axios from 'axios';
 import dotenv from 'dotenv';
 import apiTracker from './apiTracker.js';
 // import mongoose from 'mongoose';
@@ -9,10 +9,10 @@ dotenv.config();
 
 // Validate environment variables
 if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'your_openai_api_key_here') {
-  console.warn('⚠️ OPENAI_API_KEY is not configured - using dummy key for video generation only');
+  console.warn('âš ï¸ OPENAI_API_KEY is not configured - using dummy key for video generation only');
 }
 if (!process.env.SUNO_AI_API_KEY || process.env.SUNO_AI_API_KEY === 'your_suno_api_key_here') {
-  console.warn('⚠️ SUNO_AI_API_KEY is not configured - song generation will not work');
+  console.warn('âš ï¸ SUNO_AI_API_KEY is not configured - song generation will not work');
 }
 
 // Helper: Extract Suno taskId from SunoAPI.com response
@@ -52,7 +52,7 @@ const fetchSunoTaskOnce = async (taskId) => {
         (track.state === 'succeeded' || track.state === 'completed') && track.audio_url
       );
       if (completedTrack) {
-        console.log('✅ Found completed track:', completedTrack.clip_id);
+        console.log('âœ… Found completed track:', completedTrack.clip_id);
         return {
           audio_url: completedTrack.audio_url,
           duration: completedTrack.duration,
@@ -75,7 +75,7 @@ const fetchSunoTaskOnce = async (taskId) => {
         
         // If the track has been "running" for more than 3 minutes, consider it ready
         if (timeDiff > 180) {
-          console.log('⚠️ Track has been running for', Math.round(timeDiff), 'seconds, considering it ready');
+          console.log('âš ï¸ Track has been running for', Math.round(timeDiff), 'seconds, considering it ready');
           return {
             audio_url: runningTrackWithAudio.audio_url,
             duration: runningTrackWithAudio.duration,
@@ -91,7 +91,7 @@ const fetchSunoTaskOnce = async (taskId) => {
         track.state === 'processing' || track.state === 'queued' || track.state === 'running'
       );
       if (processingTrack) {
-        console.log('⏳ Track still processing:', processingTrack.state);
+        console.log('â³ Track still processing:', processingTrack.state);
         return null; // Still processing
       }
       
@@ -100,25 +100,25 @@ const fetchSunoTaskOnce = async (taskId) => {
         track.state === 'failed' || track.state === 'error'
       );
       if (failedTracks.length > 0) {
-        console.error('❌ Failed tracks:', failedTracks.map(t => ({ id: t.clip_id, state: t.state })));
+        console.error('âŒ Failed tracks:', failedTracks.map(t => ({ id: t.clip_id, state: t.state })));
         throw new Error(`Track generation failed: ${failedTracks[0].state}`);
       }
       
       // If no successful tracks and none processing, it failed
-      console.error('❌ All tracks in unknown state:', data.data.map(t => ({ id: t.clip_id, state: t.state })));
+      console.error('âŒ All tracks in unknown state:', data.data.map(t => ({ id: t.clip_id, state: t.state })));
       throw new Error('All tracks failed to generate');
     }
     
     // Handle error responses
     if (data.code !== 200) {
-      console.error('❌ Suno API error response:', data);
+      console.error('âŒ Suno API error response:', data);
       throw new Error(`Suno API error: ${data.message || data.msg || 'Unknown error'}`);
     }
     
     return null;
   } catch (err) {
     if (err.response?.status === 401) {
-      console.error('❌ Suno API authentication failed - check API key');
+      console.error('âŒ Suno API authentication failed - check API key');
       throw new Error('Suno API authentication failed - invalid API key');
     }
     console.error('Suno task fetch error:', err.message);
@@ -132,30 +132,30 @@ const pollTaskStatus = async (taskId, maxAttempts = 10, initialDelay = 25000) =>
   const maxWaitTime = 5 * 60 * 1000; // 5 minutes maximum
   
   let delay = initialDelay;
-  console.log(`⏳ Waiting ${delay/1000}s before first poll...`);
+  console.log(`â³ Waiting ${delay/1000}s before first poll...`);
   await new Promise(resolve => setTimeout(resolve, delay));
   
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     // Check if we've exceeded maximum wait time
     if (Date.now() - startTime > maxWaitTime) {
-      console.log('⚠️ Maximum wait time (5 minutes) exceeded, stopping polling');
+      console.log('âš ï¸ Maximum wait time (5 minutes) exceeded, stopping polling');
       throw new Error(`Task polling timed out after 5 minutes for taskId: ${taskId}`);
     }
     
-    console.log(`🔄 Polling attempt ${attempt}/${maxAttempts} for task ${taskId}`);
+    console.log(`ðŸ”„ Polling attempt ${attempt}/${maxAttempts} for task ${taskId}`);
     try {
       const taskResult = await fetchSunoTaskOnce(taskId);
       if (taskResult) {
-        console.log('✅ Task completed successfully');
+        console.log('âœ… Task completed successfully');
         return taskResult;
       }
 
       // Increase delay for next attempt (max 30s)
       delay = Math.min(delay * 1.2, 30000);
-      console.log(`⏳ Task still processing, waiting ${delay/1000}s before next poll...`);
+      console.log(`â³ Task still processing, waiting ${delay/1000}s before next poll...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     } catch (error) {
-      console.error(`❌ Polling error attempt ${attempt}:`, error.message);
+      console.error(`âŒ Polling error attempt ${attempt}:`, error.message);
       
       // If it's an auth error, don't retry
       if (error.message.includes('authentication')) {
@@ -175,7 +175,7 @@ const pollTaskStatus = async (taskId, maxAttempts = 10, initialDelay = 25000) =>
 
 // Generate song using OpenAI for lyrics and Suno API for audio (fallback to ElevenLabs)
 const generateSong = async (gift) => {
-  console.log('🎵 Starting song generation for:', gift);
+  console.log('ðŸŽµ Starting song generation for:', gift);
   const { recipientName, tone, memories = [], genre = 'pop', occasion = 'special occasion', language = 'en' } = gift;
 
   // Map language codes to full names for OpenAI
@@ -203,7 +203,7 @@ const generateSong = async (gift) => {
 
   try {
     // Step 1: Generate lyrics using OpenAI
-    console.log('🤖 Generating lyrics with OpenAI...');
+    console.log('ðŸ¤– Generating lyrics with OpenAI...');
     const lyricsResponse = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
@@ -222,11 +222,11 @@ const generateSong = async (gift) => {
     );
     
     lyrics = lyricsResponse.data.choices?.[0]?.message?.content || 'No lyrics generated';
-    console.log('✅ Lyrics generated successfully:', lyrics.substring(0, 100) + '...');
+    console.log('âœ… Lyrics generated successfully:', lyrics.substring(0, 100) + '...');
     await apiTracker.trackAPIUsage('openai', 1, lyrics.length);
 
     // Step 2: Try Suno API for audio generation
-    console.log('🎵 Attempting Suno AI audio generation...');
+    console.log('ðŸŽµ Attempting Suno AI audio generation...');
     try {
       const title = `${recipientName}'s ${occasion} Song`.slice(0, 80);
       
@@ -235,7 +235,7 @@ const generateSong = async (gift) => {
         throw new Error('Invalid Suno AI API key configuration');
       }
       
-      console.log('🔑 Using Suno API key:', process.env.SUNO_AI_API_KEY.substring(0, 8) + '...');
+      console.log('ðŸ”‘ Using Suno API key:', process.env.SUNO_AI_API_KEY.substring(0, 8) + '...');
       
       const musicResponse = await axios.post(
         'https://api.sunoapi.com/api/v1/suno/create',  // Correct SunoAPI.com endpoint
@@ -260,26 +260,26 @@ const generateSong = async (gift) => {
       // Extract task ID from SunoAPI.com response
       const taskId = extractSunoTaskId(musicResponse.data);
       if (!taskId) {
-        console.error('❌ No task ID in Suno response:', JSON.stringify(musicResponse.data, null, 2));
+        console.error('âŒ No task ID in Suno response:', JSON.stringify(musicResponse.data, null, 2));
         throw new Error('No task ID from Suno API - response: ' + JSON.stringify(musicResponse.data));
       }
 
-      console.log(`⏳ Polling Suno task: ${taskId}`);
+      console.log(`â³ Polling Suno task: ${taskId}`);
       const audioData = await pollTaskStatus(taskId);
       
       if (!audioData?.audio_url) {
-        console.error('❌ No audio URL in task response:', audioData);
+        console.error('âŒ No audio URL in task response:', audioData);
         throw new Error('No audio URL from Suno task');
       }
 
-      console.log('📥 Downloading audio from Suno...');
+      console.log('ðŸ“¥ Downloading audio from Suno...');
       const audioResponse = await axios.get(audioData.audio_url, { 
         responseType: 'arraybuffer',
         timeout: 60000
       });
       
       const base64 = Buffer.from(audioResponse.data).toString('base64');
-      console.log('✅ Suno audio generation completed successfully');
+      console.log('âœ… Suno audio generation completed successfully');
       
       await apiTracker.trackAPIUsage('suno', 1, lyrics.length);
       
@@ -294,11 +294,11 @@ const generateSong = async (gift) => {
       };
       
     } catch (sunoError) {
-      console.warn('⚠️ Suno AI failed, falling back to ElevenLabs:', sunoError.message);
+      console.warn('âš ï¸ Suno AI failed, falling back to ElevenLabs:', sunoError.message);
       
       // Fallback: ElevenLabs TTS for lyrics
       try {
-        console.log('🎤 Attempting ElevenLabs TTS fallback...');
+        console.log('ðŸŽ¤ Attempting ElevenLabs TTS fallback...');
         let voiceIdToUse = 'wyWA56cQNU2KqUW4eCsI';
         const activeVoice = await VoiceStyle.findOne({ isActive: true });
         if (activeVoice) voiceIdToUse = activeVoice.voiceId;
@@ -321,7 +321,7 @@ const generateSong = async (gift) => {
         );
         
         const base64 = Buffer.from(voiceResponse.data).toString('base64');
-        console.log('✅ ElevenLabs TTS fallback completed');
+        console.log('âœ… ElevenLabs TTS fallback completed');
         
         await apiTracker.trackAPIUsage('elevenlabs', 1, lyrics.length);
         
@@ -336,7 +336,7 @@ const generateSong = async (gift) => {
         };
         
       } catch (fallbackError) {
-        console.error('❌ ElevenLabs fallback also failed:', fallbackError.message);
+        console.error('âŒ ElevenLabs fallback also failed:', fallbackError.message);
         await apiTracker.trackAPIUsage('elevenlabs', 1, 0, null, true);
         
         return { 
@@ -352,7 +352,7 @@ const generateSong = async (gift) => {
     }
     
   } catch (openaiError) {
-    console.error('❌ OpenAI lyrics generation failed:', openaiError.message);
+    console.error('âŒ OpenAI lyrics generation failed:', openaiError.message);
     await apiTracker.trackAPIUsage('openai', 1, 0, null, true);
     
     throw new Error(`Failed to generate song lyrics: ${openaiError.message}`);
@@ -366,7 +366,19 @@ const pollTaskStatus = async (taskId, maxAttempts = 20, initialDelay = 5000) => 
 
 // Handle text-based and voice gifts
 const generateContent = async (gift) => {
-  const { giftType, recipientName, tone, memories = [], occasion = 'special occasion', language = 'en' } = gift;
+  const {
+    giftType,
+    recipientName,
+    tone,
+    memories = [],
+    occasion = 'special occasion',
+    language = 'en',
+    relationship = '',
+    senderMessage = '',
+    regenerateOptions = [],
+    isRegenerate = false,
+    voiceStyleId
+  } = gift;
 
   // Map language codes to full names for OpenAI
   const languageMap = {
@@ -400,7 +412,7 @@ const generateContent = async (gift) => {
       prompt = `Create a short story in ${languageName} inspired by ${recipientName} with the theme: ${tone}, for a ${occasion}, and these memories: ${memories.join(', ')}.`;
       break;
     case 'wishknot':
-      console.log('🪢 Generating WishKnot...');
+      console.log('ðŸª¢ Generating WishKnot...');
       try {
         const wishknotResult = await generateWishknot({
           recipientName: gift.recipientName,
@@ -411,13 +423,13 @@ const generateContent = async (gift) => {
           relationship: gift.relationship || 'friend',
           language: language // Pass language code to WishKnot
         });
-        console.log('✅ WishKnot generated successfully');
+        console.log('âœ… WishKnot generated successfully');
         return wishknotResult;
       } catch (wishknotError) {
-        console.error('❌ WishKnot generation failed:', wishknotError.message);
+        console.error('âŒ WishKnot generation failed:', wishknotError.message);
         // Return fallback WishKnot
         return {
-          message: `A symbolic WishKnot for ${gift.recipientName} — a loop of care and intention for this ${gift.occasion || 'special occasion'}.`,
+          message: `A symbolic WishKnot for ${gift.recipientName} â€” a loop of care and intention for this ${gift.occasion || 'special occasion'}.`,
           animationUrl: 'data:image/svg+xml;utf8,' + encodeURIComponent(`
             <svg width="400" height="300" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
               <rect width="100%" height="100%" rx="20" fill="#fff0f6"/>
@@ -540,10 +552,10 @@ const generateContent = async (gift) => {
       // For video type, provide structured content
       if (giftType === 'video') {
         try {
-          console.log('🎬 Generating video for:', { recipientName, tone, memories, occasion });
+          console.log('ðŸŽ¬ Generating video for:', { recipientName, tone, memories, occasion });
           // Use only RunwayML for video generation
           const { videoUrl } = await generateVideo({ promptText: textContent, recipientName, tone, memories, occasion });
-          console.log('🎬 Video generated successfully:', videoUrl);
+          console.log('ðŸŽ¬ Video generated successfully:', videoUrl);
           return {
             text: textContent,
             type: 'video',
@@ -552,7 +564,7 @@ const generateContent = async (gift) => {
             videoUrl
           };
         } catch (videoError) {
-          console.error('🎬 Video generation failed:', videoError.message);
+          console.error('ðŸŽ¬ Video generation failed:', videoError.message);
           return {
             text: textContent,
             type: 'video',
@@ -585,7 +597,7 @@ const generateContent = async (gift) => {
 //   memories = [],
 //   occasion = "special occasion"
 // }) => {
-//   console.log("🎬 Starting video generation with AIMLAPI (Kling 2.5 Turbo)...");
+//   console.log("ðŸŽ¬ Starting video generation with AIMLAPI (Kling 2.5 Turbo)...");
 
 //   if (!process.env.AIML_API_KEY) {
 //     throw new Error("AIMLAPI key not configured. Please set AIML_API_KEY in environment variables.");
@@ -612,10 +624,10 @@ const generateContent = async (gift) => {
 //     duration: 8
 //   };
 
-//   console.log("🎬 Request body:", body);
+//   console.log("ðŸŽ¬ Request body:", body);
 
 //   try {
-//     // ✅ Correct AIMLAPI endpoint for video generation
+//     // âœ… Correct AIMLAPI endpoint for video generation
 //     const response = await axios.post(
 //       "https://api.aimlapi.com/v1/videos/generations",
 //       body,
@@ -628,7 +640,7 @@ const generateContent = async (gift) => {
 //       }
 //     );
 
-//     console.log("🎬 Response:", response.data);
+//     console.log("ðŸŽ¬ Response:", response.data);
 
 //     const videoUrl = response.data?.data?.[0]?.url || response.data?.output?.video_url;
 
@@ -636,11 +648,11 @@ const generateContent = async (gift) => {
 //       throw new Error("Video URL not found in response.");
 //     }
 
-//     console.log("🎬 ✅ Video generated successfully:", videoUrl);
+//     console.log("ðŸŽ¬ âœ… Video generated successfully:", videoUrl);
 //     return { videoUrl };
 
 //   } catch (error) {
-//     console.error("🎬 Video generation error:", error.response?.data || error.message);
+//     console.error("ðŸŽ¬ Video generation error:", error.response?.data || error.message);
 //     throw new Error(`Video generation failed: ${error.message}`);
 //   }
 // };
@@ -655,8 +667,8 @@ const generateVideo = async ({
   memories = [],
   occasion = "special occasion"
 }) => {
-  console.log("🎬 Starting video generation with RunwayML (veo3)...");
-  console.log("🎬 API Key available:", !!process.env.RUNWAY_API_KEY);
+  console.log("ðŸŽ¬ Starting video generation with RunwayML (veo3)...");
+  console.log("ðŸŽ¬ API Key available:", !!process.env.RUNWAY_API_KEY);
 
   // Validate API key
   if (
@@ -683,7 +695,7 @@ const generateVideo = async ({
           `A ${tone} cinematic tribute video for ${recipientName}'s ${occasion}, with warm lighting, emotional atmosphere, soft bokeh, natural motion.`
         );
 
-  console.log("🎬 Video prompt:", videoPrompt);
+  console.log("ðŸŽ¬ Video prompt:", videoPrompt);
 
   // function shortenPrompt(prompt) {
   //   if (prompt.length <= 1000) return prompt;
@@ -705,7 +717,7 @@ const generateVideo = async ({
     motion: 1
   };
 
-  console.log("🎬 Request body:", body);
+  console.log("ðŸŽ¬ Request body:", body);
 
   try {
     // Create task
@@ -725,7 +737,7 @@ const generateVideo = async ({
     const taskId = response.data?.id;
     if (!taskId) throw new Error("Failed to create RunwayML task.");
 
-    console.log("🎬 Task created:", taskId);
+    console.log("ðŸŽ¬ Task created:", taskId);
 
     // Polling
     let videoUrl = null;
@@ -749,11 +761,11 @@ const generateVideo = async ({
       );
 
       const status = poll.data?.status;
-      console.log(`🎬 [${attempt}] Status:`, status);
+      console.log(`ðŸŽ¬ [${attempt}] Status:`, status);
 
       if (status === "SUCCEEDED") {
         videoUrl = poll.data?.output?.[0];
-        console.log("🎬 ✅ Video ready:", videoUrl);
+        console.log("ðŸŽ¬ âœ… Video ready:", videoUrl);
         break;
       }
       if (status === "FAILED") {
@@ -770,7 +782,7 @@ const generateVideo = async ({
 
     return { videoUrl };
   } catch (error) {
-    console.error("🎬 Video generation error:", error.response?.data || error.message);
+    console.error("ðŸŽ¬ Video generation error:", error.response?.data || error.message);
 
     if (error.response?.status === 400) {
       throw new Error(`Invalid request: ${JSON.stringify(error.response.data)}`);
@@ -785,7 +797,7 @@ const generateVideo = async ({
       throw new Error("Rate limit exceeded. Try again later.");
     }
     if (error.response?.status === 500) {
-      throw new Error("RunwayML internal error — retry.");
+      throw new Error("RunwayML internal error â€” retry.");
     }
 
     throw new Error(`Video generation failed: ${error.message}`);
@@ -834,7 +846,7 @@ const generateWishknot = async ({ recipientName, tone = '', occasion = 'special 
     Write ONLY the personal message, no quotes or extra formatting.
     Make it feel like it truly comes from someone who knows ${recipientName} well.`;
     
-    console.log('🪢 Generating personalized WishKnot message...');
+    console.log('ðŸª¢ Generating personalized WishKnot message...');
     
     const messageResponse = await axios.post(
       'https://api.openai.com/v1/chat/completions',
@@ -854,9 +866,9 @@ const generateWishknot = async ({ recipientName, tone = '', occasion = 'special 
     );
     
     const personalizedMessage = messageResponse.data.choices?.[0]?.message?.content?.trim() || 
-      `A symbolic WishKnot for ${recipientName} — a loop of care, connection, and intention for this ${occasion}. Each twist holds our shared memories and the bond between us.`;
+      `A symbolic WishKnot for ${recipientName} â€” a loop of care, connection, and intention for this ${occasion}. Each twist holds our shared memories and the bond between us.`;
     
-    console.log('✅ Personalized WishKnot message generated');
+    console.log('âœ… Personalized WishKnot message generated');
     await apiTracker.trackAPIUsage('openai', 1, personalizedMessage.length);
     
     // Create sophisticated animated SVG based on tone and relationship
@@ -950,7 +962,7 @@ const generateWishknot = async ({ recipientName, tone = '', occasion = 'special 
     // Create untying animation (for when recipient opens it)
     const untieAnimation = createUntieAnimation(knotAnimations);
     
-    console.log('✅ WishKnot generated successfully with personalized animation');
+    console.log('âœ… WishKnot generated successfully with personalized animation');
     
     return {
       message: personalizedMessage,
@@ -972,11 +984,11 @@ const generateWishknot = async ({ recipientName, tone = '', occasion = 'special 
     };
     
   } catch (error) {
-    console.error('❌ Error generating WishKnot:', error.message);
+    console.error('âŒ Error generating WishKnot:', error.message);
     await apiTracker.trackAPIUsage('openai', 1, 0, null, true);
     
     // Fallback to simple knot
-    const fallbackMessage = `A symbolic WishKnot for ${recipientName} — a loop of care, connection, and intention for this ${occasion}.`;
+    const fallbackMessage = `A symbolic WishKnot for ${recipientName} â€” a loop of care, connection, and intention for this ${occasion}.`;
     const fallbackSvg = encodeURIComponent(`
       <svg width="400" height="300" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
         <rect width="100%" height="100%" rx="20" fill="#fff0f6"/>
@@ -1299,3 +1311,6 @@ const generateImages = async (gift) => {
 };
 
 export default { generateSong, generateContent, generateImages, pollTaskStatus };
+
+
+

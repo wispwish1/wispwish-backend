@@ -131,6 +131,11 @@ const giftSchema = new mongoose.Schema({
     enum: ['pending', 'completed'],
     default: 'pending'
   },
+  subscriptionId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Subscription',
+    required: false
+  }
 });
 
 export default mongoose.model('Gift', giftSchema);

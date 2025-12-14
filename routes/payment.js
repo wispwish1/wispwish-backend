@@ -4,6 +4,7 @@ import Gift from '../models/Gift.js';
 import Order from '../models/Order.js';
 import Payment from '../models/Payment.js';
 import User from '../models/User.js';
+import Subscription from '../models/Subscription.js';
 import nodemailerService from '../services/nodemailerService.js';
 
 const router = express.Router();
@@ -24,7 +25,7 @@ try {
 
 // Available prices for validation
 // Updated to include more price combinations with add-ons (base prices + add-on prices)
-const VALID_PRICES = [5,6,7,9, 8, 10, 12, 22, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 24, 25, 27, 30, 35]; // Added common combinations with add-ons
+const VALID_PRICES = [5, 6, 7, 9, 8, 10, 12, 22, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 24, 25, 27, 30, 35]; // Added common combinations with add-ons
 
 // Valid payment statuses
 const PAYMENT_STATUSES = {
@@ -66,12 +67,12 @@ async function getOrCreateCustomer(userId, email, name) {
 // Create Stripe Checkout Session for One-Time Payment
 router.post('/create-checkout-session', async (req, res) => {
   if (!stripe) {
-    return res.status(503).json({ 
+    return res.status(503).json({
       message: 'Payment processing is not available - Stripe not configured',
       error: 'STRIPE_NOT_CONFIGURED'
     });
   }
-  
+
   try {
     const { giftId, price, giftType, recipientName, email, userId } = req.body;
 
@@ -86,7 +87,7 @@ router.post('/create-checkout-session', async (req, res) => {
     if (!gift) {
       return res.status(404).json({ message: 'Gift not found' });
     }
-    
+
     const numericPrice = parseFloat(price);
     if (Number.isNaN(numericPrice) || numericPrice <= 0) {
       return res.status(400).json({ message: 'Invalid price' });
@@ -104,21 +105,21 @@ router.post('/create-checkout-session', async (req, res) => {
         return res.status(400).json({ message: 'Invalid price' });
       }
     }
-    
+
     // Fix: Extract audio content from generatedContent for song gifts
     if (giftType === 'song' && gift.generatedContent && typeof gift.generatedContent === 'object' && gift.generatedContent.audio) {
       gift.audioContent = gift.generatedContent.audio;
       console.log('✅ Extracted audio content from song gift');
     }
-    
+
     // Check for existing order and payment
     let order = await Order.findOne({ giftId }).populate('payment');
     let payment;
-    
+
     if (order && order.payment) {
       payment = order.payment;
       console.log('⚠️ Existing order and payment found:', { orderId: order._id, paymentId: payment._id });
-      
+
       // Check if existing payment has valid Stripe session
       if (payment.stripeSessionId) {
         try {
@@ -219,13 +220,89 @@ router.post('/create-checkout-session', async (req, res) => {
       sessionId: session.id,
       orderId: order._id,
       paymentId: payment._id,
-      status: PAYMENT_STATUSES.PENDING // ✅ Fixed: Should be PENDING, not COMPLETE
+      status: PAYMENT_STATUSES.PENDING
     });
   } catch (error) {
     console.error('Error creating checkout session:', error.message);
     res.status(500).json({ message: 'Error creating checkout session', error: error.message });
   }
 });
+
+// Helper to handle subscription checkout completion
+async function handleSubscriptionCheckoutCompletion(session) {
+  try {
+    console.log('🔄 Processing subscription checkout completion:', session.id);
+
+    const now = new Date();
+
+    // First, find the pending subscription to get the plan frequency
+    const pendingSubscription = await Subscription.findOne({ checkoutSessionId: session.id });
+    const frequency = pendingSubscription?.frequency || 'monthly';
+
+    // planExpiresAt: When the BILLING period ends. Both plans are billed monthly (30 days).
+    const billingExpiryDays = 30;
+    const planExpiresAt = new Date(now.getTime() + billingExpiryDays * 24 * 60 * 60 * 1000);
+
+    // periodEndDate: When the GIFT QUOTA resets. 7 days for weekly, 30 days for monthly.
+    const quotaResetDays = frequency === 'weekly' ? 7 : 30;
+    const periodEndDate = new Date(now.getTime() + quotaResetDays * 24 * 60 * 60 * 1000);
+
+    console.log(`📅 Plan frequency: ${frequency}, Billing expires: ${planExpiresAt.toISOString()}, Quota resets: ${periodEndDate.toISOString()}`);
+
+    // Update subscription status
+    const subscription = await Subscription.findOneAndUpdate(
+      { checkoutSessionId: session.id },
+      {
+        status: 'active',
+        stripeSubscriptionId: session.subscription,
+        planActivatedAt: now,
+        planExpiresAt: planExpiresAt, // Billing expiry (30 days)
+        currentPeriodStart: now,
+        currentPeriodEnd: planExpiresAt, // Billing expiry (30 days)
+        nextGiftDate: now, // User can create gift immediately
+        // Initialize quota tracking fields
+        giftCountThisPeriod: 0,
+        periodStartDate: now,
+        periodEndDate: periodEndDate // Quota reset (7 or 30 days based on frequency)
+      },
+      { new: true }
+    );
+
+    if (subscription) {
+      console.log('✅ Subscription activated:', subscription._id, {
+        planId: subscription.planId,
+        planName: subscription.planName,
+        frequency: subscription.frequency,
+        status: subscription.status
+      });
+
+      // Update user status AND the plan object properly
+      if (subscription.userId) {
+        const userUpdate = {
+          isSubscribed: true,
+          subscriptionId: subscription._id,
+          // Update the plan object with all subscription details
+          plan: {
+            activeSubscriptionId: subscription._id,
+            planId: subscription.planId,
+            planName: subscription.planName,
+            frequency: subscription.frequency,
+            planActivatedAt: now,
+            planExpiresAt: expiresAt,
+            status: 'active'
+          }
+        };
+
+        await User.findByIdAndUpdate(subscription.userId, userUpdate);
+        console.log('✅ User plan profile updated for userId:', subscription.userId);
+      }
+    } else {
+      console.error('❌ Subscription not found for session:', session.id);
+    }
+  } catch (error) {
+    console.error('Error handling subscription completion:', error);
+  }
+}
 
 // Stripe Webhook Handler
 router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
@@ -249,158 +326,166 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 
   try {
     switch (event.type) {
-     case 'checkout.session.completed': {
-  const session = event.data.object;
-  const { giftId, buyerEmail, userId, paymentId } = session.metadata;
+      case 'checkout.session.completed': {
+        const session = event.data.object;
 
-  console.log('🎯 Payment successful! Processing for gift:', giftId);
-  console.log('📋 Session metadata:', session.metadata);
-  console.log('💳 Payment ID from metadata:', paymentId);
+        // Handle subscription checkout
+        if (session.mode === 'subscription') {
+          await handleSubscriptionCheckoutCompletion(session);
+          res.json({ received: true });
+          break;
+        }
 
-  // Find the payment first
-  const payment = await Payment.findById(paymentId);
-  if (!payment) {
-    console.error('❌ Payment not found for ID:', paymentId);
-    return res.status(404).json({ message: 'Payment not found' });
-  }
+        const { giftId, buyerEmail, userId, paymentId } = session.metadata;
 
-  console.log('✅ Payment found:', payment._id);
-  
-  // Update payment status first
-  payment.status = PAYMENT_STATUSES.COMPLETE;
-  payment.completedAt = new Date();
-  await payment.save();
-  console.log('✅ Payment status updated to complete');
+        console.log('🎯 Payment successful! Processing for gift:', giftId);
+        console.log('📋 Session metadata:', session.metadata);
+        console.log('💳 Payment ID from metadata:', paymentId);
 
-  // Now update the order
-  const order = await Order.findById(payment.order);
-  if (order) {
-    order.paymentStatus = PAYMENT_STATUSES.COMPLETE;
-    order.status = 'completed';
-    order.completedAt = new Date();
-    // Update the order price to the actual amount charged
-    order.price = session.amount_total / 100;
-    await order.save();
-    console.log('✅ Order status updated to complete:', order._id);
-  }
+        // Find the payment first
+        const payment = await Payment.findById(paymentId);
+        if (!payment) {
+          console.error('❌ Payment not found for ID:', paymentId);
+          return res.status(404).json({ message: 'Payment not found' });
+        }
 
-  // Now update the gift
-  let gift;
-  if (order && order.giftId) {
-    gift = await Gift.findById(order.giftId);
-    if (gift) {
-      gift.paymentStatus = PAYMENT_STATUSES.COMPLETE;
-      gift.status = 'completed';
-      // Update the gift price to the actual amount charged
-      gift.price = session.amount_total / 100;
-      await gift.save();
-      console.log('✅ Gift status updated to complete:', gift._id);
-    }
-  }
-  
-  // Send confirmation email
-  await nodemailerService.sendPaymentConfirmation({
-    buyerEmail,
-    giftType: gift?.giftType || 'unknown',
-    amount: session.amount_total / 100,
-    transactionId: session.payment_intent,
-  });
-  console.log('✅ Payment confirmation email sent');
+        console.log('✅ Payment found:', payment._id);
 
-  // Send gift email to recipient if delivery method is email
-  if (gift && gift.deliveryMethod === 'email' && gift.deliveryEmail) {
-    try {
-      const now = new Date();
-      const scheduledDate = gift.scheduledDate ? new Date(gift.scheduledDate) : now;
-      
-      // Check if it's time to send the gift (current time is after scheduled time)
-      if (scheduledDate <= now) {
-        // Make sure gift is fully populated with audioContent
-        const populatedGift = await Gift.findById(gift._id);
-        
-        // Handle WishKnot gifts differently
-        if (populatedGift.giftType === 'wishknot') {
-          // Import WishKnot model dynamically
-          const WishKnot = (await import('../models/WishKnot.js')).default;
-          const wishKnot = await WishKnot.findOne({ giftId: populatedGift._id });
-          
-          if (wishKnot) {
-            console.log('🪢 Sending WishKnot email with access token:', wishKnot.accessToken);
-            const wishKnotEmailResult = await nodemailerService.sendWishKnotEmail({
-              recipientEmail: populatedGift.deliveryEmail,
-              recipientName: populatedGift.recipientName,
-              senderName: populatedGift.senderName,
-              knotType: wishKnot.knotType,
-              occasion: populatedGift.occasion,
-              viewUrl: `${process.env.BASE_URL || 'http://127.0.0.1:5500'}/wishknot-view.html?giftId=${populatedGift._id}&token=${wishKnot.accessToken}`,
-              scheduledRevealDate: wishKnot.scheduledRevealDate
-            });
-            
-            if (wishKnotEmailResult.success) {
-              console.log('✅ WishKnot email sent to recipient after payment:', wishKnotEmailResult.messageId);
-              await wishKnot.logInteraction('email_sent', { recipientEmail: populatedGift.deliveryEmail });
-              
-              gift.deliveryStatus = 'delivered';
-              gift.deliveredAt = new Date();
-              await gift.save();
-              console.log(`✅ WishKnot email sent to recipient: ${gift.deliveryEmail}`);
-            } else {
-              console.error('❌ Failed to send WishKnot email after payment:', wishKnotEmailResult.error);
-              gift.deliveryStatus = 'failed';
-              await gift.save();
-            }
-          } else {
-            console.error('❌ WishKnot record not found for gift:', populatedGift._id);
-            gift.deliveryStatus = 'failed';
+        // Update payment status first
+        payment.status = PAYMENT_STATUSES.COMPLETE;
+        payment.completedAt = new Date();
+        await payment.save();
+        console.log('✅ Payment status updated to complete');
+
+        // Now update the order
+        const order = await Order.findById(payment.order);
+        if (order) {
+          order.paymentStatus = PAYMENT_STATUSES.COMPLETE;
+          order.status = 'completed';
+          order.completedAt = new Date();
+          // Update the order price to the actual amount charged
+          order.price = session.amount_total / 100;
+          await order.save();
+          console.log('✅ Order status updated to complete:', order._id);
+        }
+
+        // Now update the gift
+        let gift;
+        if (order && order.giftId) {
+          gift = await Gift.findById(order.giftId);
+          if (gift) {
+            gift.paymentStatus = PAYMENT_STATUSES.COMPLETE;
+            gift.status = 'completed';
+            // Update the gift price to the actual amount charged
+            gift.price = session.amount_total / 100;
             await gift.save();
-          }
-        } else {
-          // Handle regular gifts (non-WishKnot)
-          try {
-            const giftResult = await nodemailerService.sendGiftEmail({
-              ...populatedGift.toObject(),
-              buyerEmail: buyerEmail || populatedGift.deliveryEmail,
-            });
-
-            if (giftResult.success) {
-              populatedGift.deliveryStatus = 'delivered';
-              populatedGift.deliveredAt = new Date();
-              await populatedGift.save();
-              console.log(`✅ Gift delivered immediately: ${populatedGift._id}`);
-            } else {
-              populatedGift.deliveryStatus = 'failed';
-              await populatedGift.save();
-              console.error(`❌ Failed to send immediate gift email: ${populatedGift._id}`, giftResult.error);
-            }
-          } catch (emailError) {
-            console.error('❌ Error sending gift email:', emailError.message);
-            populatedGift.deliveryStatus = 'failed';
-            await populatedGift.save();
+            console.log('✅ Gift status updated to complete:', gift._id);
           }
         }
-      } else {
-        // It's not time to send yet, mark as scheduled
-        gift.deliveryStatus = 'scheduled';
-        await gift.save();
-        console.log(`📅 Gift scheduled for delivery at: ${scheduledDate}`);
-      }
-    } catch (emailError) {
-      console.error('❌ Error processing gift delivery:', emailError.message);
-    }
-  }
 
-  res.json({
-    received: true,
-    message: 'Payment completed successfully',
-    status: PAYMENT_STATUSES.COMPLETE,
-    giftId,
-    orderId: payment.order ? payment.order.toString() : null,
-    paymentId,
-    transactionId: session.payment_intent,
-    amount: session.amount_total / 100,
-  });
-  break;
-}
+        // Send confirmation email
+        await nodemailerService.sendPaymentConfirmation({
+          buyerEmail,
+          giftType: gift?.giftType || 'unknown',
+          amount: session.amount_total / 100,
+          transactionId: session.payment_intent,
+        });
+        console.log('✅ Payment confirmation email sent');
+
+        // Send gift email to recipient if delivery method is email
+        if (gift && gift.deliveryMethod === 'email' && gift.deliveryEmail) {
+          try {
+            const now = new Date();
+            const scheduledDate = gift.scheduledDate ? new Date(gift.scheduledDate) : now;
+
+            // Check if it's time to send the gift (current time is after scheduled time)
+            if (scheduledDate <= now) {
+              // Make sure gift is fully populated with audioContent
+              const populatedGift = await Gift.findById(gift._id);
+
+              // Handle WishKnot gifts differently
+              if (populatedGift.giftType === 'wishknot') {
+                // Import WishKnot model dynamically
+                const WishKnot = (await import('../models/WishKnot.js')).default;
+                const wishKnot = await WishKnot.findOne({ giftId: populatedGift._id });
+
+                if (wishKnot) {
+                  console.log('🪢 Sending WishKnot email with access token:', wishKnot.accessToken);
+                  const wishKnotEmailResult = await nodemailerService.sendWishKnotEmail({
+                    recipientEmail: populatedGift.deliveryEmail,
+                    recipientName: populatedGift.recipientName,
+                    senderName: populatedGift.senderName,
+                    knotType: wishKnot.knotType,
+                    occasion: populatedGift.occasion,
+                    viewUrl: `${process.env.BASE_URL || 'http://127.0.0.1:5500'}/wishknot-view.html?giftId=${populatedGift._id}&token=${wishKnot.accessToken}`,
+                    scheduledRevealDate: wishKnot.scheduledRevealDate
+                  });
+
+                  if (wishKnotEmailResult.success) {
+                    console.log('✅ WishKnot email sent to recipient after payment:', wishKnotEmailResult.messageId);
+                    await wishKnot.logInteraction('email_sent', { recipientEmail: populatedGift.deliveryEmail });
+
+                    gift.deliveryStatus = 'delivered';
+                    gift.deliveredAt = new Date();
+                    await gift.save();
+                    console.log(`✅ WishKnot email sent to recipient: ${gift.deliveryEmail}`);
+                  } else {
+                    console.error('❌ Failed to send WishKnot email after payment:', wishKnotEmailResult.error);
+                    gift.deliveryStatus = 'failed';
+                    await gift.save();
+                  }
+                } else {
+                  console.error('❌ WishKnot record not found for gift:', populatedGift._id);
+                  gift.deliveryStatus = 'failed';
+                  await gift.save();
+                }
+              } else {
+                // Handle regular gifts (non-WishKnot)
+                try {
+                  const giftResult = await nodemailerService.sendGiftEmail({
+                    ...populatedGift.toObject(),
+                    buyerEmail: buyerEmail || populatedGift.deliveryEmail,
+                  });
+
+                  if (giftResult.success) {
+                    populatedGift.deliveryStatus = 'delivered';
+                    populatedGift.deliveredAt = new Date();
+                    await populatedGift.save();
+                    console.log(`✅ Gift delivered immediately: ${populatedGift._id}`);
+                  } else {
+                    populatedGift.deliveryStatus = 'failed';
+                    await populatedGift.save();
+                    console.error(`❌ Failed to send immediate gift email: ${populatedGift._id}`, giftResult.error);
+                  }
+                } catch (emailError) {
+                  console.error('❌ Error sending gift email:', emailError.message);
+                  populatedGift.deliveryStatus = 'failed';
+                  await populatedGift.save();
+                }
+              }
+            } else {
+              // It's not time to send yet, mark as scheduled
+              gift.deliveryStatus = 'scheduled';
+              await gift.save();
+              console.log(`📅 Gift scheduled for delivery at: ${scheduledDate}`);
+            }
+          } catch (emailError) {
+            console.error('❌ Error processing gift delivery:', emailError.message);
+          }
+        }
+
+        res.json({
+          received: true,
+          message: 'Payment completed successfully',
+          status: PAYMENT_STATUSES.COMPLETE,
+          giftId,
+          orderId: payment.order ? payment.order.toString() : null,
+          paymentId,
+          transactionId: session.payment_intent,
+          amount: session.amount_total / 100,
+        });
+        break;
+      }
       case 'checkout.session.expired':
       case 'checkout.session.async_payment_failed': {
         const session = event.data.object;
@@ -412,7 +497,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
           payment.status = PAYMENT_STATUSES.ERROR;
           payment.errorMessage = `Checkout session ${event.type === 'checkout.session.expired' ? 'expired' : 'payment failed'}`;
           await payment.save();
-          
+
           // Update order status
           const order = await Order.findById(payment.order);
           if (order) {
@@ -420,7 +505,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
             order.status = 'failed';
             await order.save();
           }
-          
+
           // Update gift status
           if (order && order.giftId) {
             const gift = await Gift.findById(order.giftId);
@@ -458,7 +543,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 async function updatePaymentStatus(stripeSessionId, status, errorMessage = null) {
   try {
     console.log(`🔄 Updating payment status to: ${status} for session: ${stripeSessionId}`);
-    
+
     const payment = await Payment.findOne({ stripeSessionId });
     if (!payment) {
       console.error('❌ Payment not found for session:', stripeSessionId);
@@ -518,7 +603,7 @@ async function updatePaymentStatus(stripeSessionId, status, errorMessage = null)
         }
       }
     }
-    
+
     console.log(`🎉 All tables updated successfully for payment: ${payment._id}`);
   } catch (error) {
     console.error('💥 Error updating payment status:', error.message);
@@ -542,13 +627,13 @@ async function processPaymentCompletion(giftId, stripeSessionId, buyerEmail, sta
     if (gift.giftType === 'image' && gift.selectedImageId) {
       console.log('🖼️ Processing image gift - selectedImageId:', gift.selectedImageId);
       console.log('🖼️ Available images:', gift.images.map(img => ({ id: img._id.toString(), url: img.url })));
-      
+
       const selectedImage = gift.images.find(img => {
         const match = img._id.toString() === gift.selectedImageId.toString();
         console.log('🔍 Comparing:', img._id.toString(), 'with', gift.selectedImageId.toString(), '- Match:', match);
         return match;
       });
-      
+
       if (selectedImage) {
         gift.generatedContent = selectedImage.url;
         console.log('✅ Selected image set as generated content:', selectedImage.url);
@@ -575,7 +660,7 @@ async function processPaymentCompletion(giftId, stripeSessionId, buyerEmail, sta
           // Import WishKnot model dynamically
           const WishKnot = (await import('../models/WishKnot.js')).default;
           const wishKnot = await WishKnot.findOne({ giftId: updatedGift._id });
-          
+
           if (wishKnot) {
             console.log('🪢 Sending WishKnot email with access token:', wishKnot.accessToken);
             const wishKnotEmailResult = await nodemailerService.sendWishKnotEmail({
@@ -589,11 +674,11 @@ async function processPaymentCompletion(giftId, stripeSessionId, buyerEmail, sta
               viewUrl: `${process.env.BASE_URL || 'http://127.0.0.1:5500'}/wishknot-view.html?giftId=${updatedGift._id}&token=${wishKnot.accessToken}`,
               scheduledRevealDate: wishKnot.scheduledRevealDate
             });
-            
+
             if (wishKnotEmailResult.success) {
               console.log('✅ WishKnot email sent to recipient after payment:', wishKnotEmailResult.messageId);
               await wishKnot.logInteraction('email_sent', { recipientEmail: updatedGift.deliveryEmail });
-              
+
               updatedGift.deliveryStatus = 'delivered';
               updatedGift.deliveredAt = new Date();
               await updatedGift.save();
@@ -616,12 +701,12 @@ async function processPaymentCompletion(giftId, stripeSessionId, buyerEmail, sta
               ...updatedGift.toObject(),
               buyerEmail: buyerEmail || updatedGift.deliveryEmail,
             };
-            
+
             // Ensure combo gifts have properly structured content
             if (updatedGift.giftType === 'combo' && updatedGift.generatedContent && typeof updatedGift.generatedContent === 'object') {
               giftData.generatedContent = updatedGift.generatedContent;
             }
-            
+
             const giftResult = await nodemailerService.sendGiftEmail(giftData);
 
             if (giftResult.success) {
@@ -745,11 +830,11 @@ router.post('/sync-payment/:sessionId', async (req, res) => {
 
     // Verify session with Stripe
     const session = await stripe.checkout.sessions.retrieve(sessionId);
-    
+
     if (!session) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Stripe session not found' 
+      return res.status(404).json({
+        success: false,
+        message: 'Stripe session not found'
       });
     }
 
@@ -762,29 +847,29 @@ router.post('/sync-payment/:sessionId', async (req, res) => {
     // Check if payment was successful in Stripe
     if (session.payment_status === 'paid' && session.status === 'complete') {
       const { giftId, buyerEmail, paymentId } = session.metadata;
-      
+
       // Check current database status
       const payment = await Payment.findById(paymentId);
       if (!payment) {
-        return res.status(404).json({ 
-          success: false, 
-          message: 'Payment record not found in database' 
+        return res.status(404).json({
+          success: false,
+          message: 'Payment record not found in database'
         });
       }
 
       // If payment is still pending in database but completed in Stripe, sync it
       if (payment.status === 'pending') {
         console.log('🔄 Syncing payment status from Stripe to database...');
-        
+
         await processPaymentCompletion(giftId, sessionId, buyerEmail, PAYMENT_STATUSES.COMPLETE);
-        
+
         // Send confirmation email if not sent already
         const gift = await Gift.findById(giftId);
         if (gift) {
           // Update the gift price to the actual amount charged
           gift.price = session.amount_total / 100;
           await gift.save();
-          
+
           await nodemailerService.sendPaymentConfirmation({
             buyerEmail,
             giftType: gift.giftType || 'unknown',
@@ -841,24 +926,24 @@ router.post('/auto-sync/:giftId', async (req, res) => {
     // Find the order and payment
     const order = await Order.findOne({ giftId }).populate('payment');
     if (!order || !order.payment) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Order or payment not found' 
+      return res.status(404).json({
+        success: false,
+        message: 'Order or payment not found'
       });
     }
 
     const payment = order.payment;
-    
+
     // If payment is pending, check Stripe status
     if (payment.status === 'pending' && payment.stripeSessionId) {
       const session = await stripe.checkout.sessions.retrieve(payment.stripeSessionId);
-      
+
       if (session.payment_status === 'paid' && session.status === 'complete') {
         console.log('🔄 Auto-syncing payment from Stripe...');
-        
+
         const { buyerEmail } = session.metadata;
         await processPaymentCompletion(giftId, payment.stripeSessionId, buyerEmail, PAYMENT_STATUSES.COMPLETE);
-        
+
         res.json({
           success: true,
           message: 'Payment auto-synced successfully',

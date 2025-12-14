@@ -22,7 +22,7 @@
 //     };
 // };
 
-  
+
 
 
 // export const authLimiter = rateLimit({
@@ -38,23 +38,23 @@
 
 // function requireLogin(req, res, next) {
 //     const token = req.cookies?.token; // assuming you use cookies
-  
+
 //     if (!token) {
 //       return res.redirect('/signup');
 //     }
-  
+
 //     // optionally verify token
 //     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
 //       if (err) return res.redirect('/signup');
 //       req.user = user;
 //       next();
 //     });
-  
+
 //     next();
 //   }
-  
+
 // export default requireLogin;
-  
+
 
 
 // import jwt from 'jsonwebtoken';
@@ -218,23 +218,54 @@ import User from '../models/User.js'; // Assuming User model is imported for aut
 
 
 const authenticateToken = async (req, res, next) => {
-    // Set a dummy user for all requests
-    req.user = {
-        _id: '123456789',
-        name: 'Test User',
-        email: 'test@example.com',
-        role: 'admin', // Admin role to bypass all role checks
-        isEmailVerified: true
-    };
+  try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication token required',
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const user = await User.findById(decoded.userId).select('-password');
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token',
+      });
+    }
+
+    req.user = user;
     next();
+  } catch (error) {
+    console.error('JWT verification error:', error);
+
+    // Check if token is expired
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Your session has expired. Please log in again.',
+        tokenExpired: true,
+      });
+    }
+
+    return res.status(403).json({
+      success: false,
+      message: 'Invalid or expired token',
+    });
+  }
 };
 
 // Bypass role authorization
 export const authorizeRoles = (...roles) => {
-    return (req, res, next) => {
-        // Always allow access regardless of role
-        next();
-    };
+  return (req, res, next) => {
+    // Always allow access regardless of role
+    next();
+  };
 };
 
 
@@ -273,4 +304,4 @@ const requireLogin = (req, res, next) => {
   });
 };
 
-export { authenticateToken,  requireLogin };
+export { authenticateToken, requireLogin };

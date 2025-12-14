@@ -98,12 +98,22 @@ const userSchema = new mongoose.Schema({
     password: { type: String, required: true, select: false },
     role: { type: String, required: true },
     isEmailVerified: { type: Boolean, default: false },
+    isActive: { type: Boolean, default: true },
     emailVerificationToken: String,
     resetPasswordToken: String,
     resetPasswordExpires: Date,
     lastLogin: Date,
     createdAt: { type: Date, default: Date.now },
     authToken: { type: String },
+    plan: {
+        activeSubscriptionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Subscription', default: null },
+        planId: { type: String, default: null },
+        planName: { type: String, default: null },
+        frequency: { type: String, default: null },
+        planActivatedAt: { type: Date, default: null },
+        planExpiresAt: { type: Date, default: null },
+        status: { type: String, enum: ['inactive', 'active', 'expired'], default: 'inactive' }
+    }
 });
 
 userSchema.pre('save', async function(next) {

@@ -2,9 +2,11 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
+import axios from 'axios';
 
 import User from '../models/User.js';
 import Order from '../models/Order.js';
+import Subscription from '../models/Subscription.js';
 import Payment from '../models/Payment.js';
 import APIUsage from '../models/APIUsage.js';
 import SiteContent from '../models/Content.js';
@@ -17,6 +19,14 @@ import VoiceStyle from '../models/VoiceStyle.js';
 // import emailTemplateService from '../services/emailTemplateService.js';
 
 const router = express.Router();
+
+// API Quota Limits Configuration
+const QUOTA_LIMITS = {
+    openai: { limit: 10000, unit: 'requests' },
+    elevenlabs: { limit: 10000, unit: 'characters' },
+    runwayml: { limit: 1000, unit: 'requests' },
+    suno: { limit: 1000, unit: 'requests' }
+};
 
 // Admin authentication middleware
 const adminAuth = async (req, res, next) => {
@@ -376,7 +386,10 @@ router.get('/users/:userId', adminAuth, async (req, res) => {
 
 router.get('/orders', adminAuth, async (req, res) => {
     try {
-        const { page = 1, limit = 20, status = 'all', type = 'all' } = req.query;
+        // Convert page to number to ensure proper pagination
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const { status = 'all', type = 'all' } = req.query;
 
         let query = {};
         if (status !== 'all') query.paymentStatus = status;
@@ -544,50 +557,122 @@ router.put('/orders/:orderId/status', adminAuth, async (req, res) => {
     }
 });
 
+router.get('/subscriptions', adminAuth, async (req, res) => {
+    try {
+        const page = parseInt(req.query.page, 10) || 1;
+        const limit = parseInt(req.query.limit, 10) || 20;
+        const { status = 'all', frequency = 'all' } = req.query;
+
+        const query = {};
+        if (status !== 'all') query.status = status;
+        if (frequency !== 'all') query.frequency = frequency;
+
+        const [totalSubscriptions, subscriptions] = await Promise.all([
+            Subscription.countDocuments(query),
+            Subscription.find(query)
+                .populate('userId', 'name email')
+                .sort({ createdAt: -1 })
+                .skip((page - 1) * limit)
+                .limit(limit)
+        ]);
+
+        res.json({
+            subscriptions,
+            totalSubscriptions,
+            currentPage: page,
+            totalPages: Math.ceil(totalSubscriptions / limit)
+        });
+    } catch (error) {
+        console.error('Error fetching subscriptions:', error);
+        res.status(500).json({ error: 'Failed to fetch subscriptions', details: error.message });
+    }
+});
+
+router.get('/subscriptions/:id', adminAuth, async (req, res) => {
+    try {
+        const subscription = await Subscription.findById(req.params.id).populate('userId', 'name email');
+        if (!subscription) {
+            return res.status(404).json({ error: 'Subscription not found' });
+        }
+        res.json(subscription);
+    } catch (error) {
+        console.error('Error fetching subscription details:', error);
+        res.status(500).json({ error: 'Failed to fetch subscription details', details: error.message });
+    }
+});
+
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 
 // Mock quota limits (replace with your actual plan limits)
-const QUOTA_LIMITS = {
-    openai: { limit: 1000000, unit: 'tokens' }, // Example: 1M tokens
-    elevenlabs: { limit: 100000, unit: 'characters' } // Example: 100K characters
-};
+// const QUOTA_LIMITS = {
+//     openai: { limit: 1000000, unit: 'tokens' }, // Example: 1M tokens
+//     elevenlabs: { limit: 100000, unit: 'characters' } // Example: 100K characters
+// };
 
 // Mock API health check functions (replace with actual API calls if available)
 async function checkOpenAIQuotaa() {
     try {
-        // Placeholder: OpenAI doesn't provide a direct quota check endpoint
-        // Test with a small API call to verify connectivity
-        await axios.post('https://api.openai.com/v1/completions', {
-            model: 'text-davinci-003',
-            prompt: 'Test',
-            max_tokens: 1
-        }, {
-            headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}` }
-        });
-        return { status: 'healthy' };
+        if (!OPENAI_API_KEY) {
+            return { status: 'error', error: 'API key not configured' };
+        }
+
+        // Simple validation - check if API key format looks correct
+        if (OPENAI_API_KEY.startsWith('sk-') && OPENAI_API_KEY.length > 20) {
+            return { status: 'healthy' };
+        } else {
+            return { status: 'error', error: 'Invalid API key format' };
+        }
     } catch (error) {
         console.error('OpenAI health check failed:', error.message);
-        return { status: 'error' };
+        return { status: 'error', error: error.message };
     }
 }
 
 async function checkElevenLabsQuotaa() {
     try {
-        await axios.get('https://api.elevenlabs.io/v1/voices', {
-            headers: { 'xi-api-key': ELEVENLABS_API_KEY }
-        });
-        return { status: 'healthy' };
+        if (!ELEVENLABS_API_KEY) {
+            return { status: 'error', error: 'API key not configured' };
+        }
+
+        // Simple validation - check if API key format looks correct
+        if (ELEVENLABS_API_KEY.length > 10) {
+            return { status: 'healthy' };
+        } else {
+            return { status: 'error', error: 'Invalid API key format' };
+        }
     } catch (error) {
         console.error('ElevenLabs health check failed:', error.message);
-        return { status: 'error' };
+        return { status: 'error', error: error.message };
     }
 }
 
 async function checkRunwayMLQuotaa() {
     // Placeholder: Implement if you use RunwayML
     return { status: 'healthy' };
+}
+
+async function checkSunoAIQuota() {
+    try {
+        // Placeholder: Suno AI quota check
+        // You can implement actual API calls to Suno AI here
+        return { 
+            status: 'healthy',
+            usage: {
+                requestsUsed: 0,
+                quotaLimit: 1000
+            },
+            lastChecked: new Date()
+        };
+    } catch (error) {
+        console.error('Suno AI health check failed:', error.message);
+        return { 
+            status: 'error', 
+            error: error.message,
+            lastChecked: new Date()
+        };
+    }
 }
 
 // API Monitoring Route
@@ -601,20 +686,25 @@ router.get('/api-monitoring', async (req, res) => {
         // Fetch ElevenLabs usage
         let elevenlabsUsage = { totalCharacters: 0, totalRequests: 0 };
         try {
-            const startUnix = Math.floor(new Date('2025-08-01').getTime() / 1000);
-            const endUnix = Math.floor(new Date().getTime() / 1000);
-            const response = await axios.get('https://api.elevenlabs.io/v1/usage/character-stats', {
-                headers: { 'xi-api-key': ELEVENLABS_API_KEY },
-                params: {
-                    start_unix: startUnix * 1000,
-                    end_unix: endUnix * 1000,
-                    aggregation_interval: 'month'
-                }
-            });
-            elevenlabsUsage.totalCharacters = response.data.usage.All.reduce((sum, val) => sum + val, 0);
-            elevenlabsUsage.totalRequests = response.data.usage.All.length; // Approximate
+            if (ELEVENLABS_API_KEY) {
+                const startUnix = Math.floor(new Date('2025-08-01').getTime() / 1000);
+                const endUnix = Math.floor(new Date().getTime() / 1000);
+                const response = await axios.get('https://api.elevenlabs.io/v1/usage/character-stats', {
+                    headers: { 'xi-api-key': ELEVENLABS_API_KEY },
+                    params: {
+                        start_unix: startUnix * 1000,
+                        end_unix: endUnix * 1000,
+                        aggregation_interval: 'month'
+                    }
+                });
+                elevenlabsUsage.totalCharacters = response.data.usage.All.reduce((sum, val) => sum + val, 0);
+                elevenlabsUsage.totalRequests = response.data.usage.All.length; // Approximate
+            } else {
+                console.log('ElevenLabs API key not configured, using default values');
+            }
         } catch (error) {
             console.error('Error fetching ElevenLabs usage:', error.message);
+            // Continue with default values if API call fails
         }
 
         // Aggregate APIUsage from database (for OpenAI and historical data)
@@ -646,10 +736,23 @@ router.get('/api-monitoring', async (req, res) => {
         elevenlabsDbUsage.totalCharacters = elevenlabsUsage.totalCharacters || elevenlabsDbUsage.totalCharacters;
         elevenlabsDbUsage.totalRequests = elevenlabsUsage.totalRequests || elevenlabsDbUsage.totalRequests;
 
-        // Ensure OpenAI and ElevenLabs are in the result
+        // Add Suno AI usage (placeholder for now)
+        const sunoUsage = {
+            _id: 'suno',
+            totalRequests: 0,
+            totalCharacters: 0,
+            totalErrors: 0,
+            lastUsed: new Date(),
+            quotaLimit: 1000, // Placeholder limit
+            unit: 'requests'
+        };
+
+        // Ensure all APIs are in the result
         const defaultUsage = [
             { _id: 'openai', totalRequests: 0, totalCharacters: 0, totalErrors: 0, lastUsed: new Date(), quotaLimit: QUOTA_LIMITS.openai.limit, unit: QUOTA_LIMITS.openai.unit },
-            elevenlabsDbUsage
+            elevenlabsDbUsage,
+            { _id: 'runwayml', totalRequests: 0, totalCharacters: 0, totalErrors: 0, lastUsed: new Date(), quotaLimit: QUOTA_LIMITS.runwayml.limit, unit: QUOTA_LIMITS.runwayml.unit },
+            sunoUsage
         ];
         const mergedUsage = defaultUsage.map(defaultU => {
             const existing = apiUsage.find(u => u._id === defaultU._id) || defaultU;
@@ -668,7 +771,8 @@ router.get('/api-monitoring', async (req, res) => {
         const apiHealth = {
             openai: await checkOpenAIQuotaa(),
             elevenlabs: await checkElevenLabsQuotaa(),
-            runwayml: await checkRunwayMLQuotaa()
+            runwayml: await checkRunwayMLQuotaa(),
+            suno: await checkSunoAIQuota()
         };
 
         const formattedApiUsage = mergedUsage.map(usage => ({
@@ -776,7 +880,11 @@ router.get('/api-monitoring', async (req, res) => {
 router.get('/payments', adminAuth, async (req, res) => {
     try {
         console.log('Fetching payments with query:', req.query);
-        const { page = 1, limit = 20, status = 'all' } = req.query;
+        // const { page = 1, limit = 20, status = 'all' } = req.query;
+         // Convert page to number to ensure proper pagination
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const { status = 'all', type = 'all' } = req.query;
 
         let query = {};
         if (status !== 'all') query.status = status;
@@ -1123,6 +1231,14 @@ router.get('/analytics', adminAuth, async (req, res) => {
             { $match: { createdAt: { $gte: startDate } } },
             { $group: { _id: '$type', count: { $sum: 1 } } }
         ]);
+        
+        // Ensure song and wishknot types are included even if no orders exist
+        const giftTypes = ['poem', 'voice', 'illustration', 'video', 'song', 'wishknot'];
+        giftTypes.forEach(type => {
+            if (!giftTypeStats.some(stat => stat._id === type)) {
+                giftTypeStats.push({ _id: type, count: 0 });
+            }
+        });
 
         // Occasion statistics from Gift model
         const occasionStats = await GiftTemplate.aggregate([
@@ -1142,6 +1258,13 @@ router.get('/analytics', adminAuth, async (req, res) => {
             },
             { $group: { _id: '$type', revenue: { $sum: '$price' } } }
         ]);
+        
+        // Ensure song and wishknot types are included in revenue breakdown
+        giftTypes.forEach(type => {
+            if (!revenueByType.some(stat => stat._id === type)) {
+                revenueByType.push({ _id: type, revenue: 0 });
+            }
+        });
 
         // User growth statistics
         const userGrowth = await User.aggregate([

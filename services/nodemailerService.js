@@ -7,7 +7,7 @@ import nodemailer from 'nodemailer';
 /**
  * Create Nodemailer transporter
  */
-const createTransporter = () => {
+const createTransporter = () => { 
     // Use dry-run mode ONLY if explicitly enabled
     if (String(process.env.EMAIL_DRY_RUN).toLowerCase() === 'true') {
         return {

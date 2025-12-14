@@ -14,7 +14,9 @@ import songRoutes from './routes/song.js';
 import authRoutes from './routes/authRoutes.js';
 import contentRoutes from './routes/contentRoutes.js';
 import wishknotRoutes from './routes/wishknot.js';
+import subscriptionRoutes from './routes/subscriptionRoutes.js';
 import scheduledDeliveryService from './services/scheduledDeliveryService.js';
+// import subscriptionFulfillmentService from './services/subscriptionFulfillmentService.js';
 
 dotenv.config();
 
@@ -60,20 +62,21 @@ app.use('/api/artwork', artworkRouter);
 app.use('/api/song', songRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/wishknot', wishknotRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
 
 // Serve frontend routes
 app.get(['/', '/generator.html', '/wishknot.html', '/pricing.html', '/how-it-works.html', '/login.html'], (req, res) => {
-    res.sendFile('index.html', { root: 'frontend' });
+  res.sendFile('index.html', { root: 'frontend' });
 });
 
 // Serve video player
 app.get('/video-player.html', (req, res) => {
-    res.sendFile(path.resolve('../video-player.html'));
+  res.sendFile(path.resolve('../video-player.html'));
 });
 
 // Serve WishKnot viewer
 app.get('/wishknot-view.html', (req, res) => {
-    res.sendFile(path.resolve('../wishknot-view.html'));
+  res.sendFile(path.resolve('../wishknot-view.html'));
 });
 
 // Email Route
@@ -85,8 +88,8 @@ app.post("/send-email", async (req, res) => {
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-           user: process.env.EMAIL_USER, 
-           pass: process.env.EMAIL_PASS    // 🔹 use Gmail App Password (not normal password)
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS    // 🔹 use Gmail App Password (not normal password)
       }
     });
 
@@ -124,4 +127,5 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   // Scheduled delivery service automatically starts
   scheduledDeliveryService.start();
+  // subscriptionFulfillmentService.start();
 });
