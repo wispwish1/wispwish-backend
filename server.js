@@ -1,6 +1,8 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import nodemailer from "nodemailer";
 import path from 'path';
 import cookieParser from 'cookie-parser';
@@ -15,10 +17,9 @@ import authRoutes from './routes/authRoutes.js';
 import contentRoutes from './routes/contentRoutes.js';
 import wishknotRoutes from './routes/wishknot.js';
 import subscriptionRoutes from './routes/subscriptionRoutes.js';
+import chatRoutes from './routes/chatRoutes.js';
 import scheduledDeliveryService from './services/scheduledDeliveryService.js';
 // import subscriptionFulfillmentService from './services/subscriptionFulfillmentService.js';
-
-dotenv.config();
 
 const app = express();
 
@@ -63,6 +64,7 @@ app.use('/api/song', songRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/wishknot', wishknotRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Serve frontend routes
 app.get(['/', '/generator.html', '/wishknot.html', '/pricing.html', '/how-it-works.html', '/login.html'], (req, res) => {

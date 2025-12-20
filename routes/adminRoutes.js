@@ -14,6 +14,7 @@ import EmailTemplate from '../models/EmailTemplate.js';
 import nodemailerService from '../services/nodemailerService.js';
 import GiftTemplate from '../models/Gift.js';
 import VoiceStyle from '../models/VoiceStyle.js';
+import apiMonitoringService from '../services/apiMonitoringService.js';
 
 
 // import emailTemplateService from '../services/emailTemplateService.js';
@@ -55,10 +56,10 @@ router.get('/dashboard/stats', adminAuth, async (req, res) => {
     try {
         const totalUsers = await User.countDocuments();
         const totalOrders = await Order.countDocuments();
-        
+
         // Payment model سے pending payments کی count لیں
         const pendingPayments = await Payment.countDocuments({ status: 'pending' });
-        
+
         // یا پھر Order model میں properly sync کریں
         const pendingOrders = await Order.countDocuments({ paymentStatus: 'pending' });
 
@@ -74,8 +75,8 @@ router.get('/dashboard/stats', adminAuth, async (req, res) => {
         startOfYesterday.setDate(startOfYesterday.getDate() - 1);
 
         const todayRevenue = await Payment.aggregate([
-            { 
-                $match: { 
+            {
+                $match: {
                     status: 'completed',
                     createdAt: { $gte: startOfToday }
                 }
@@ -84,10 +85,10 @@ router.get('/dashboard/stats', adminAuth, async (req, res) => {
         ]);
 
         const yesterdayRevenue = await Payment.aggregate([
-            { 
-                $match: { 
+            {
+                $match: {
                     status: 'completed',
-                    createdAt: { 
+                    createdAt: {
                         $gte: startOfYesterday,
                         $lt: startOfToday
                     }
@@ -100,13 +101,13 @@ router.get('/dashboard/stats', adminAuth, async (req, res) => {
         const startOfWeek = new Date(today);
         startOfWeek.setDate(today.getDate() - today.getDay());
         startOfWeek.setHours(0, 0, 0, 0);
-        
+
         const startOfLastWeek = new Date(startOfWeek);
         startOfLastWeek.setDate(startOfLastWeek.getDate() - 7);
 
         const thisWeekRevenue = await Payment.aggregate([
-            { 
-                $match: { 
+            {
+                $match: {
                     status: 'completed',
                     createdAt: { $gte: startOfWeek }
                 }
@@ -115,10 +116,10 @@ router.get('/dashboard/stats', adminAuth, async (req, res) => {
         ]);
 
         const lastWeekRevenue = await Payment.aggregate([
-            { 
-                $match: { 
+            {
+                $match: {
                     status: 'completed',
-                    createdAt: { 
+                    createdAt: {
                         $gte: startOfLastWeek,
                         $lt: startOfWeek
                     }
@@ -133,8 +134,8 @@ router.get('/dashboard/stats', adminAuth, async (req, res) => {
         const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0, 23, 59, 59);
 
         const thisMonthRevenue = await Payment.aggregate([
-            { 
-                $match: { 
+            {
+                $match: {
                     status: 'completed',
                     createdAt: { $gte: startOfMonth }
                 }
@@ -143,10 +144,10 @@ router.get('/dashboard/stats', adminAuth, async (req, res) => {
         ]);
 
         const lastMonthRevenue = await Payment.aggregate([
-            { 
-                $match: { 
+            {
+                $match: {
                     status: 'completed',
-                    createdAt: { 
+                    createdAt: {
                         $gte: startOfLastMonth,
                         $lte: endOfLastMonth
                     }
@@ -307,12 +308,12 @@ router.put('/users/:userId/unblock', adminAuth, async (req, res) => {
 router.get('/users/:userId', adminAuth, async (req, res) => {
     try {
         const { userId } = req.params;
-        
+
         // Validate ObjectId
         if (!mongoose.Types.ObjectId.isValid(userId)) {
             return res.status(400).json({ error: 'Invalid user ID' });
         }
-        
+
         const user = await User.findById(userId).select('-password');
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
@@ -488,24 +489,24 @@ router.put('/orders/:orderId/status', adminAuth, async (req, res) => {
             try {
                 console.log('🎯 Order completed, checking for gift email delivery...');
                 console.log('Gift ID:', order.giftId);
-                
+
                 const Gift = mongoose.model('Gift');
                 const gift = await Gift.findById(order.giftId);
                 console.log('Gift found:', gift ? 'Yes' : 'No');
-                
+
                 if (gift) {
                     console.log('Gift delivery method:', gift.deliveryMethod);
                     console.log('Gift delivery email:', gift.deliveryEmail);
-                    
+
                     if (gift.deliveryMethod === 'email' && gift.deliveryEmail) {
                         console.log('📧 Sending gift email via nodemailer...');
-                        
+
                         // Handle WishKnot gifts differently
                         if (gift.giftType === 'wishknot') {
                             // Import WishKnot model dynamically to avoid circular dependencies
                             const WishKnot = (await import('../models/WishKnot.js')).default;
                             const wishKnot = await WishKnot.findOne({ giftId: gift._id });
-                            
+
                             if (wishKnot) {
                                 console.log('🪢 Sending WishKnot email from admin with access token:', wishKnot.accessToken);
                                 const result = await nodemailerService.sendWishKnotEmail({
@@ -519,7 +520,7 @@ router.put('/orders/:orderId/status', adminAuth, async (req, res) => {
                                     viewUrl: `${process.env.BASE_URL || 'http://127.0.0.1:5500'}/wishknot-view.html?giftId=${gift._id}&token=${wishKnot.accessToken}`,
                                     scheduledRevealDate: wishKnot.scheduledRevealDate
                                 });
-                                
+
                                 if (result.success) {
                                     console.log('✅ WishKnot email sent from admin successfully:', result.messageId);
                                     await wishKnot.logInteraction('email_sent', { recipientEmail: gift.deliveryEmail });
@@ -532,7 +533,7 @@ router.put('/orders/:orderId/status', adminAuth, async (req, res) => {
                         } else {
                             // Handle regular gifts (non-WishKnot)
                             const result = await nodemailerService.sendGiftEmail(gift);
-                            
+
                             if (result.success) {
                                 console.log('✅ Gift delivery email sent successfully:', result.messageId);
                             } else {
@@ -657,7 +658,7 @@ async function checkSunoAIQuota() {
     try {
         // Placeholder: Suno AI quota check
         // You can implement actual API calls to Suno AI here
-        return { 
+        return {
             status: 'healthy',
             usage: {
                 requestsUsed: 0,
@@ -667,8 +668,8 @@ async function checkSunoAIQuota() {
         };
     } catch (error) {
         console.error('Suno AI health check failed:', error.message);
-        return { 
-            status: 'error', 
+        return {
+            status: 'error',
             error: error.message,
             lastChecked: new Date()
         };
@@ -806,6 +807,89 @@ router.get('/api-monitoring', async (req, res) => {
     }
 });
 
+// Real-time API Credits Route - Fetches actual credit balances from providers
+router.get('/api-credits', adminAuth, async (req, res) => {
+    try {
+        console.log('📊 Fetching real-time API credits...');
+
+        const credits = await apiMonitoringService.getAllCredits();
+
+        // Format response for frontend
+        const apiUsage = [
+            {
+                provider: 'openai',
+                status: credits.openai.status === 'active' ? 'Active' :
+                    credits.openai.status === 'low' ? 'Low Balance' : 'Error',
+                creditsRemaining: credits.openai.creditsRemaining,
+                creditsUsed: credits.openai.creditsUsed,
+                totalCredits: credits.openai.totalCredits,
+                usagePercentage: credits.openai.usagePercentage || 0,
+                unit: credits.openai.unit,
+                lowBalance: credits.openai.lowBalance,
+                rechargeUrl: credits.openai.rechargeUrl,
+                error: credits.openai.error,
+                note: credits.openai.note
+            },
+            {
+                provider: 'elevenlabs',
+                status: credits.elevenlabs.status === 'active' ? 'Active' :
+                    credits.elevenlabs.status === 'low' ? 'Low Balance' : 'Error',
+                creditsRemaining: credits.elevenlabs.creditsRemaining,
+                creditsUsed: credits.elevenlabs.creditsUsed,
+                totalCredits: credits.elevenlabs.totalCredits,
+                usagePercentage: credits.elevenlabs.usagePercentage || 0,
+                unit: credits.elevenlabs.unit,
+                tier: credits.elevenlabs.tier,
+                nextResetDate: credits.elevenlabs.nextResetDate,
+                lowBalance: credits.elevenlabs.lowBalance,
+                rechargeUrl: credits.elevenlabs.rechargeUrl,
+                error: credits.elevenlabs.error
+            },
+            {
+                provider: 'runwayml',
+                status: credits.runwayml.status === 'active' ? 'Active' :
+                    credits.runwayml.status === 'low' ? 'Low Balance' : 'Error',
+                creditsRemaining: credits.runwayml.creditsRemaining,
+                creditsUsed: credits.runwayml.creditsUsed,
+                totalCredits: credits.runwayml.totalCredits,
+                usagePercentage: credits.runwayml.usagePercentage || 0,
+                unit: credits.runwayml.unit,
+                lowBalance: credits.runwayml.lowBalance,
+                rechargeUrl: credits.runwayml.rechargeUrl,
+                error: credits.runwayml.error
+            },
+            {
+                provider: 'suno',
+                status: credits.suno.status === 'active' ? 'Active' :
+                    credits.suno.status === 'low' ? 'Low Balance' : 'Error',
+                creditsRemaining: credits.suno.creditsRemaining,
+                creditsUsed: credits.suno.creditsUsed,
+                totalCredits: credits.suno.totalCredits,
+                usagePercentage: credits.suno.usagePercentage || 0,
+                unit: credits.suno.unit,
+                lowBalance: credits.suno.lowBalance,
+                rechargeUrl: credits.suno.rechargeUrl,
+                error: credits.suno.error,
+                note: credits.suno.note
+            }
+        ];
+
+        // Check if any API has low balance
+        const hasLowBalance = apiUsage.some(api => api.lowBalance);
+        const lowBalanceApis = apiUsage.filter(api => api.lowBalance).map(api => api.provider);
+
+        res.json({
+            apiUsage,
+            lastUpdated: credits.lastUpdated,
+            hasLowBalance,
+            lowBalanceApis,
+            recentErrors: []
+        });
+    } catch (error) {
+        console.error('Error fetching API credits:', error);
+        res.status(500).json({ error: 'Failed to fetch API credits', details: error.message });
+    }
+});
 
 // // AI API MONITORING
 // router.get('/api-monitoring', adminAuth, async (req, res) => {
@@ -881,7 +965,7 @@ router.get('/payments', adminAuth, async (req, res) => {
     try {
         console.log('Fetching payments with query:', req.query);
         // const { page = 1, limit = 20, status = 'all' } = req.query;
-         // Convert page to number to ensure proper pagination
+        // Convert page to number to ensure proper pagination
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
         const { status = 'all', type = 'all' } = req.query;
@@ -955,11 +1039,11 @@ router.get('/payments', adminAuth, async (req, res) => {
 router.get('/payments/:paymentId/invoice', adminAuth, async (req, res) => {
     try {
         const { paymentId } = req.params;
-        
+
         const payment = await Payment.findById(paymentId)
             .populate('order')
             .populate('userId', 'email name');
-            
+
         if (!payment) {
             return res.status(404).json({ error: 'Payment not found' });
         }
@@ -967,30 +1051,30 @@ router.get('/payments/:paymentId/invoice', adminAuth, async (req, res) => {
         // Generate PDF invoice using a library like puppeteer or jsPDF
         const PDFDocument = require('pdfkit');
         const doc = new PDFDocument();
-        
+
         // Set response headers for PDF download
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename=invoice_${paymentId}.pdf`);
-        
+
         // Pipe PDF to response
         doc.pipe(res);
-        
+
         // Add invoice content
         doc.fontSize(20).text('INVOICE', 50, 50);
         doc.fontSize(12)
-           .text(`Invoice ID: INV-${payment._id}`, 50, 100)
-           .text(`Payment ID: ${payment._id}`, 50, 120)
-           .text(`Date: ${new Date(payment.createdAt).toLocaleDateString()}`, 50, 140)
-           .text(`Amount: $${payment.amount.toFixed(2)}`, 50, 160)
-           .text(`Status: ${payment.status}`, 50, 180)
-           .text(`Method: ${payment.method}`, 50, 200);
-           
+            .text(`Invoice ID: INV-${payment._id}`, 50, 100)
+            .text(`Payment ID: ${payment._id}`, 50, 120)
+            .text(`Date: ${new Date(payment.createdAt).toLocaleDateString()}`, 50, 140)
+            .text(`Amount: $${payment.amount.toFixed(2)}`, 50, 160)
+            .text(`Status: ${payment.status}`, 50, 180)
+            .text(`Method: ${payment.method}`, 50, 200);
+
         if (payment.userId) {
             doc.text(`Customer: ${payment.userId.email}`, 50, 220);
         }
-        
+
         doc.end();
-        
+
     } catch (error) {
         console.error('Error generating invoice:', error);
         res.status(500).json({ error: 'Failed to generate invoice' });
@@ -1001,44 +1085,44 @@ router.get('/payments/:paymentId/invoice', adminAuth, async (req, res) => {
 router.post('/payments/:paymentId/refund', adminAuth, async (req, res) => {
     try {
         const { paymentId } = req.params;
-        
+
         const payment = await Payment.findById(paymentId);
         if (!payment) {
             return res.status(404).json({ error: 'Payment not found' });
         }
-        
+
         if (payment.status !== 'completed') {
             return res.status(400).json({ error: 'Only completed payments can be refunded' });
         }
-        
+
         // Process refund through Stripe
         if (payment.stripeSessionId) {
             const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-            
+
             // Get the payment intent from the session
             const session = await stripe.checkout.sessions.retrieve(payment.stripeSessionId);
             const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent);
-            
+
             // Create refund
             const refund = await stripe.refunds.create({
                 payment_intent: paymentIntent.id,
                 amount: Math.round(payment.amount * 100), // Convert to cents
             });
-            
+
             // Update payment status
             payment.status = 'refunded';
             payment.refundedAt = new Date();
             payment.refundId = refund.id;
             await payment.save();
-            
+
             // Update order status
             if (payment.order) {
                 await Order.findByIdAndUpdate(payment.order, {
                     paymentStatus: 'refunded'
                 });
             }
-            
-            res.json({ 
+
+            res.json({
                 message: 'Refund processed successfully',
                 refundId: refund.id,
                 amount: payment.amount
@@ -1046,7 +1130,7 @@ router.post('/payments/:paymentId/refund', adminAuth, async (req, res) => {
         } else {
             res.status(400).json({ error: 'Cannot process refund for this payment method' });
         }
-        
+
     } catch (error) {
         console.error('Error processing refund:', error);
         res.status(500).json({ error: 'Failed to process refund' });
@@ -1096,15 +1180,15 @@ router.get('/debug-email-templates', async (req, res) => {
     try {
         console.log('=== DEBUG EMAIL TEMPLATES ===');
         console.log('MongoDB connection state:', mongoose.connection.readyState);
-        
+
         // Test direct model access
         const directTemplates = await EmailTemplate.find();
         console.log('Direct model query result:', directTemplates.length, 'templates found');
-        
+
         // Test service
         const serviceResult = await emailTemplateService.getAllTemplates();
         console.log('Service result:', serviceResult);
-        
+
         res.json({
             connectionState: mongoose.connection.readyState,
             directCount: directTemplates.length,
@@ -1113,7 +1197,7 @@ router.get('/debug-email-templates', async (req, res) => {
         });
     } catch (error) {
         console.error('Debug route error:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             error: error.message,
             stack: error.stack,
             connectionState: mongoose.connection.readyState
@@ -1206,7 +1290,7 @@ router.delete('/email-templates/:templateId', adminAuth, async (req, res) => {
 router.get('/analytics', adminAuth, async (req, res) => {
     try {
         const { period = '30days' } = req.query;
-        
+
         // Calculate date range based on period
         let startDate = new Date();
         switch (period) {
@@ -1231,7 +1315,7 @@ router.get('/analytics', adminAuth, async (req, res) => {
             { $match: { createdAt: { $gte: startDate } } },
             { $group: { _id: '$type', count: { $sum: 1 } } }
         ]);
-        
+
         // Ensure song and wishknot types are included even if no orders exist
         const giftTypes = ['poem', 'voice', 'illustration', 'video', 'song', 'wishknot'];
         giftTypes.forEach(type => {
@@ -1250,15 +1334,15 @@ router.get('/analytics', adminAuth, async (req, res) => {
 
         // Revenue breakdown by gift type
         const revenueByType = await Order.aggregate([
-            { 
-                $match: { 
+            {
+                $match: {
                     createdAt: { $gte: startDate },
                     paymentStatus: 'completed'
-                } 
+                }
             },
             { $group: { _id: '$type', revenue: { $sum: '$price' } } }
         ]);
-        
+
         // Ensure song and wishknot types are included in revenue breakdown
         giftTypes.forEach(type => {
             if (!revenueByType.some(stat => stat._id === type)) {
@@ -1284,7 +1368,7 @@ router.get('/analytics', adminAuth, async (req, res) => {
 
         // Order completion rate
         const totalOrders = await Order.countDocuments({ createdAt: { $gte: startDate } });
-        const completedOrders = await Order.countDocuments({ 
+        const completedOrders = await Order.countDocuments({
             createdAt: { $gte: startDate },
             paymentStatus: 'completed'
         });
@@ -1293,11 +1377,11 @@ router.get('/analytics', adminAuth, async (req, res) => {
 
         // Total revenue
         const totalRevenue = await Payment.aggregate([
-            { 
-                $match: { 
+            {
+                $match: {
                     createdAt: { $gte: startDate },
                     status: 'completed'
-                } 
+                }
             },
             { $group: { _id: null, total: { $sum: '$amount' } } }
         ]);
@@ -1328,7 +1412,7 @@ router.get('/analytics', adminAuth, async (req, res) => {
 router.get('/system/health', adminAuth, async (req, res) => {
     try {
         console.log('Fetching system health data...');
-        
+
         // Check database connection
         let dbStatus = 'unhealthy';
         try {
@@ -1367,7 +1451,7 @@ router.get('/system/health', adminAuth, async (req, res) => {
 
     } catch (error) {
         console.error('Error fetching system health:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             error: 'Failed to fetch system health',
             database: 'error',
             apis: {
@@ -1544,12 +1628,12 @@ async function checkElevenLabsQuota() {
 
 async function checkRunwayMLQuota() {
     try {
-        if (!process.env.RUNWAYML_API_KEY) {
+        if (!process.env.RUNWAY_API_KEY) {
             return { status: 'error', error: 'API key not configured' };
         }
 
         // Simple health check
-        const apiKey = process.env.RUNWAYML_API_KEY;
+        const apiKey = process.env.RUNWAY_API_KEY;
         if (apiKey.length > 10) {
             return {
                 status: 'healthy',
