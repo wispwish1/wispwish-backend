@@ -113,8 +113,15 @@ router.get('/plans', (req, res) => {
     });
 });
 
+// Test route to verify router is working
+router.get('/test', (req, res) => {
+    console.log('✅ Subscription router test endpoint hit');
+    res.json({ success: true, message: 'Subscription router is working' });
+});
+
 // POST /api/subscriptions/check-existing - Check if user has active subscription
 router.post('/check-existing', async (req, res) => {
+    console.log('🔍 Check-existing subscription request received');
     try {
         // Verify authentication
         const authHeader = req.headers['authorization'];

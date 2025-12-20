@@ -55,6 +55,10 @@ initializeApp();
 
 // Routes
 app.use('/api/auth', authRoutes);
+console.log('Mounting subscription routes...');
+app.use('/api/subscriptions', subscriptionRoutes);
+
+console.log('🔧 Mounting API routes...');
 app.use('/api', admin);
 app.use('/api/gift', giftRoutes);
 app.use('/api/payment', paymentRoutes);
@@ -63,8 +67,18 @@ app.use('/api/artwork', artworkRouter);
 app.use('/api/song', songRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/wishknot', wishknotRoutes);
-app.use('/api/subscriptions', subscriptionRoutes);
+
 app.use('/api/chat', chatRoutes);
+
+// API 404 Handler - MUST be after all API routes but before frontend routes
+app.use('/api', (req, res) => {
+  console.log(`❌ 404 Not Found: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({
+    success: false,
+    message: `API endpoint not found: ${req.method} ${req.originalUrl}`,
+    error: 'NOT_FOUND'
+  });
+});
 
 // Serve frontend routes
 app.get(['/', '/generator.html', '/wishknot.html', '/pricing.html', '/how-it-works.html', '/login.html'], (req, res) => {
