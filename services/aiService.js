@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import apiTracker from './apiTracker.js';
 // import mongoose from 'mongoose';
 import VoiceStyle from '../models/VoiceStyle.js';
+import PDFDocument from 'pdfkit';
 
 dotenv.config();
 // SunoAPI.com API key
@@ -171,6 +172,509 @@ const pollTaskStatus = async (taskId, maxAttempts = 10, initialDelay = 25000) =>
     }
   }
   throw new Error(`Task polling failed for taskId: ${taskId}`);
+};
+
+const normalizeTextList = (value) => {
+  if (Array.isArray(value)) {
+    return value
+      .map(item => String(item || '').trim())
+      .filter(Boolean);
+  }
+
+  if (typeof value === 'string') {
+    return value
+      .split(/[\n,]+/)
+      .map(item => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
+const slugifyFilename = (value, fallback = 'gift') => {
+  const slug = String(value || fallback)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 50);
+
+  return slug || fallback;
+};
+
+const POEM_LENGTH_OPTIONS = {
+  short: {
+    label: 'short',
+    instruction: 'Keep it short: around 8 to 12 poem lines or 2 to 3 compact story paragraphs.',
+    maxTokens: 350
+  },
+  medium: {
+    label: 'medium',
+    instruction: 'Use a medium length: around 16 to 24 poem lines or 4 to 6 story paragraphs.',
+    maxTokens: 650
+  },
+  long: {
+    label: 'long',
+    instruction: 'Make it longer and more immersive: around 28 to 40 poem lines or 7 to 10 story paragraphs.',
+    maxTokens: 950
+  }
+};
+
+const TONE_STYLE_RULES = {
+  romantic: 'Romantic -> soft, intimate, heartfelt.',
+  funny: 'Funny/Playful -> light, warm, slightly witty, never cringe.',
+  playful: 'Funny/Playful -> light, warm, slightly witty, never cringe.',
+  joyful: 'Funny/Playful -> bright, affectionate, dynamic, and sincere.',
+  heartfelt: 'Emotional -> deep, reflective, touching.',
+  deep: 'Emotional -> deep, reflective, touching.',
+  comforting: 'Comforting -> gentle, supportive, calm.',
+  calm: 'Comforting -> gentle, supportive, calm.',
+  inspirational: 'Inspirational -> grounded, warm, hopeful, and not overly polished.'
+};
+
+const VOICE_STYLE_OPTIONS = {
+  'warm-gentle': {
+    label: 'Warm & gentle',
+    searchTerms: ['warm', 'gentle', 'soft'],
+    settings: { stability: 0.48, similarity_boost: 0.82, style: 0.42, use_speaker_boost: true }
+  },
+  'romantic-soft': {
+    label: 'Romantic & soft',
+    searchTerms: ['romantic', 'soft', 'warm'],
+    settings: { stability: 0.45, similarity_boost: 0.86, style: 0.55, use_speaker_boost: true }
+  },
+  'calm-deep': {
+    label: 'Calm & deep',
+    searchTerms: ['calm', 'deep', 'steady'],
+    settings: { stability: 0.72, similarity_boost: 0.72, style: 0.22, use_speaker_boost: true }
+  },
+  'joyful-playful': {
+    label: 'Joyful / playful',
+    searchTerms: ['joyful', 'playful', 'bright'],
+    settings: { stability: 0.34, similarity_boost: 0.78, style: 0.72, use_speaker_boost: true }
+  }
+};
+
+const HANDWRITING_TEMPLATES = {
+  'elegant-script': {
+    label: 'Elegant Script',
+    background: '#fff7fb',
+    border: '#f0b8cc',
+    accent: '#b24b70',
+    text: '#3f2630',
+    font: 'Times-Italic',
+    fontSize: 18,
+    lineGap: 7,
+    decoration: '*'
+  },
+  'soft-minimal': {
+    label: 'Soft Minimal',
+    background: '#fffaf4',
+    border: '#ead9c8',
+    accent: '#8a6f5a',
+    text: '#3b332d',
+    font: 'Helvetica',
+    fontSize: 15,
+    lineGap: 8,
+    decoration: '-'
+  },
+  'playful-handwritten': {
+    label: 'Playful Handwritten',
+    background: '#f7fbff',
+    border: '#b9d7f2',
+    accent: '#356c9d',
+    text: '#263747',
+    font: 'Courier-Oblique',
+    fontSize: 15,
+    lineGap: 7,
+    decoration: '*'
+  }
+};
+
+const getLengthOption = (length = 'medium') => (
+  POEM_LENGTH_OPTIONS[length] || POEM_LENGTH_OPTIONS.medium
+);
+
+const getVoiceStyleOption = (voiceStyle = 'warm-gentle') => (
+  VOICE_STYLE_OPTIONS[voiceStyle] || VOICE_STYLE_OPTIONS['warm-gentle']
+);
+
+const getHandwritingTemplate = (handwritingStyle = 'soft-minimal') => (
+  HANDWRITING_TEMPLATES[handwritingStyle] || HANDWRITING_TEMPLATES['soft-minimal']
+);
+
+const parseApiErrorPayload = (data) => {
+  if (!data) return {};
+
+  try {
+    if (Buffer.isBuffer(data)) {
+      return JSON.parse(data.toString('utf8'));
+    }
+
+    if (data instanceof ArrayBuffer) {
+      return JSON.parse(Buffer.from(data).toString('utf8'));
+    }
+
+    if (typeof data === 'string') {
+      return JSON.parse(data);
+    }
+  } catch (_) {
+    return {};
+  }
+
+  return typeof data === 'object' ? data : {};
+};
+
+const createExternalApiError = (provider, error) => {
+  const status = error.response?.status || 502;
+  const payload = parseApiErrorPayload(error.response?.data);
+  const apiError = payload.error || payload.detail || payload || {};
+  const errorCode = apiError.code || apiError.status || apiError.type || error.code || 'external_api_error';
+  const providerName = provider === 'openai' ? 'OpenAI' : provider === 'elevenlabs' ? 'ElevenLabs' : provider;
+
+  let message = `${providerName} request failed. Please try again.`;
+  if (status === 429) {
+    message = `${providerName} rate limit or account quota was reached. Check the API key billing/quota, then try again.`;
+  } else if (status === 401 || status === 403) {
+    message = `${providerName} API key is invalid or does not have access. Check the environment key.`;
+  } else if (provider === 'elevenlabs' && errorCode === 'detected_unusual_activity') {
+    message = 'ElevenLabs blocked this request because it detected unusual activity on the account/API key. Check the ElevenLabs dashboard, billing, and API key, then try again.';
+  } else if (apiError.message) {
+    message = apiError.message;
+  }
+
+  const wrappedError = new Error(message);
+  wrappedError.statusCode = status;
+  wrappedError.provider = provider;
+  wrappedError.externalCode = errorCode;
+  wrappedError.isExternalApiError = true;
+  wrappedError.safeDetails = {
+    provider,
+    status,
+    code: errorCode,
+    message,
+    requestId: error.response?.headers?.['x-request-id'] || null
+  };
+  return wrappedError;
+};
+
+const callOpenAIChat = async ({ messages, maxTokens = 600, temperature = 0.72 }) => {
+  try {
+    const textResponse = await axios.post(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        model: 'gpt-4o-mini',
+        messages,
+        max_tokens: maxTokens,
+        temperature,
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 30000,
+      }
+    );
+
+    const content = textResponse.data.choices?.[0]?.message?.content?.trim() || '';
+    await apiTracker.trackAPIUsage('openai', 1, content.length);
+    return content;
+  } catch (error) {
+    const safeError = createExternalApiError('openai', error);
+    console.error('OpenAI API error:', safeError.safeDetails);
+    await apiTracker.trackAPIUsage('openai', 1, 0, null, true);
+    throw safeError;
+  }
+};
+
+const buildPremiumPoemInput = (gift, languageName) => {
+  const memories = normalizeTextList(gift.memories);
+  const personalityTraits = normalizeTextList(gift.personalityTraits);
+  const lengthOption = getLengthOption(gift.length || gift.poemLength);
+  const tone = gift.tone || 'heartfelt';
+
+  return {
+    systemPrompt: `You are a deeply emotional and creative writer.
+
+Your task is to write a personalized poem or short story that feels natural, human, and sincere - not AI-generated.
+
+Use the information provided to create something unique and meaningful.
+
+Guidelines:
+- Write in a warm, natural, and emotional tone
+- Avoid generic phrases and cliches
+- Make it feel like it was written by a real person
+- Include specific details from the memory and personality provided
+- Keep the structure clean and easy to read
+- Make the reader feel something: love, nostalgia, comfort, or joy
+
+Style rules:
+- ${TONE_STYLE_RULES[tone] || TONE_STYLE_RULES.heartfelt}
+
+Important:
+- Do NOT mention AI
+- Do NOT explain anything
+- Do NOT add titles like "Here is your poem"
+- Just output the final poem or story
+
+Structure:
+- Use line breaks if it is a poem
+- Keep it natural and not overly perfect`,
+    userPrompt: `Write the final gift in ${languageName}.
+
+Recipient Name: ${gift.recipientName || 'Recipient'}
+Relationship: ${gift.relationship || 'friend'}
+Occasion: ${gift.occasion || 'special occasion'}
+Tone: ${tone}
+Memory: ${memories.length ? memories.join('; ') : 'A meaningful shared moment'}
+Personality Traits: ${personalityTraits.length ? personalityTraits.join(', ') : 'kind, memorable, loved'}
+Custom Message: ${gift.senderMessage || 'No custom message provided'}
+Length: ${lengthOption.label}
+
+${lengthOption.instruction}
+
+Make the writing specific to the recipient and the shared memory. Avoid filler, overused romantic lines, and generic greeting-card language.`,
+    lengthOption
+  };
+};
+
+const generatePremiumPoemText = async (gift, languageName) => {
+  const { systemPrompt, userPrompt, lengthOption } = buildPremiumPoemInput(gift, languageName);
+
+  const draft = await callOpenAIChat({
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ],
+    maxTokens: lengthOption.maxTokens,
+    temperature: 0.78
+  });
+
+  if (!draft) {
+    throw new Error('OpenAI returned empty poem content');
+  }
+
+  try {
+    const rewritten = await callOpenAIChat({
+      messages: [
+        {
+          role: 'system',
+          content: 'You refine emotional writing so it feels natural, personal, slightly imperfect, and human. Output only the final text.'
+        },
+        {
+          role: 'user',
+          content: `Rewrite this to sound even more natural, slightly imperfect, and human.
+Avoid sounding too polished or robotic.
+Keep the original meaning, memory details, recipient, relationship, occasion, tone, and language.
+Do not add a title, explanation, or intro.
+
+${draft}`
+        }
+      ],
+      maxTokens: lengthOption.maxTokens,
+      temperature: 0.64
+    });
+
+    return rewritten || draft;
+  } catch (rewriteError) {
+    console.warn('Premium poem rewrite failed, using first draft:', rewriteError.message);
+    return draft;
+  }
+};
+
+const resolveElevenLabsVoice = async ({ voiceStyleId, voiceStyle }) => {
+  const styleOption = getVoiceStyleOption(voiceStyle);
+
+  try {
+    if (voiceStyleId) {
+      const selectedVoice = await VoiceStyle.findById(voiceStyleId);
+      if (selectedVoice?.voiceId) {
+        return { voiceId: selectedVoice.voiceId, label: selectedVoice.name || styleOption.label };
+      }
+    }
+  } catch (error) {
+    console.warn('Could not resolve voiceStyleId, falling back to style search:', error.message);
+  }
+
+  try {
+    const activeVoices = await VoiceStyle.find({ isActive: true }).sort({ isDefault: -1, createdAt: -1 });
+    const matchedVoice = activeVoices.find(voice => {
+      const haystack = `${voice.name || ''} ${voice.accent || ''}`.toLowerCase();
+      return styleOption.searchTerms.some(term => haystack.includes(term));
+    });
+    const fallbackVoice = matchedVoice || activeVoices.find(voice => voice.isDefault) || activeVoices[0];
+
+    if (fallbackVoice?.voiceId) {
+      return { voiceId: fallbackVoice.voiceId, label: fallbackVoice.name || styleOption.label };
+    }
+  } catch (error) {
+    console.warn('Failed to query voice styles, using hard-coded fallback voice:', error.message);
+  }
+
+  return { voiceId: 'wyWA56cQNU2KqUW4eCsI', label: styleOption.label };
+};
+
+const generateElevenLabsNarration = async ({ text, voiceStyle, voiceStyleId }) => {
+  const styleOption = getVoiceStyleOption(voiceStyle);
+  const { voiceId, label } = await resolveElevenLabsVoice({ voiceStyleId, voiceStyle });
+
+  try {
+    const voiceResponse = await axios.post(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+      {
+        text,
+        model_id: 'eleven_multilingual_v2',
+        voice_settings: styleOption.settings,
+      },
+      {
+        headers: {
+          'Accept': 'audio/mpeg',
+          'Content-Type': 'application/json',
+          'xi-api-key': process.env.ELEVENLABS_API_KEY,
+        },
+        responseType: 'arraybuffer',
+        timeout: 45000,
+      }
+    );
+
+    await apiTracker.trackAPIUsage('elevenlabs', 1, text.length);
+
+    const base64 = Buffer.from(voiceResponse.data).toString('base64');
+    return {
+      script: text,
+      audio: base64,
+      audioUrl: `data:audio/mpeg;base64,${base64}`,
+      voiceStyle: voiceStyle || 'warm-gentle',
+      voiceStyleLabel: label,
+      settings: styleOption.settings,
+      duration: null
+    };
+  } catch (error) {
+    const safeError = createExternalApiError('elevenlabs', error);
+    console.error('ElevenLabs API error:', safeError.safeDetails);
+    await apiTracker.trackAPIUsage('elevenlabs', 1, 0, null, true);
+    throw safeError;
+  }
+};
+
+const generateHandwrittenPdf = async ({
+  text,
+  recipientName,
+  senderName,
+  occasion,
+  handwritingStyle
+}) => new Promise((resolve, reject) => {
+  const template = getHandwritingTemplate(handwritingStyle);
+  const doc = new PDFDocument({
+    size: 'A4',
+    margin: 0,
+    info: {
+      Title: `WispWish Keepsake for ${recipientName || 'Recipient'}`,
+      Author: 'WispWish'
+    }
+  });
+  const chunks = [];
+
+  const drawTemplate = () => {
+    const { width, height } = doc.page;
+    doc.save();
+    doc.rect(0, 0, width, height).fill(template.background);
+    doc.lineWidth(1.4).strokeColor(template.border).roundedRect(38, 38, width - 76, height - 76, 18).stroke();
+    doc.fillColor(template.accent).font('Helvetica-Bold').fontSize(10).text('WispWish Keepsake', 0, 58, {
+      width,
+      align: 'center',
+      characterSpacing: 1.2
+    });
+    doc.font(template.font).fontSize(26).fillColor(template.accent).text(template.decoration, width - 82, 70, {
+      width: 30,
+      align: 'center'
+    });
+    doc.restore();
+  };
+
+  doc.on('data', chunk => chunks.push(chunk));
+  doc.on('end', () => {
+    const buffer = Buffer.concat(chunks);
+    const fileName = `wispwish-${slugifyFilename(recipientName)}-${slugifyFilename(occasion, 'occasion')}.pdf`;
+    resolve({
+      fileName,
+      contentType: 'application/pdf',
+      base64: buffer.toString('base64'),
+      dataUrl: `data:application/pdf;base64,${buffer.toString('base64')}`,
+      template: handwritingStyle || 'soft-minimal',
+      templateName: template.label
+    });
+  });
+  doc.on('error', reject);
+  doc.on('pageAdded', drawTemplate);
+
+  drawTemplate();
+
+  const pageWidth = doc.page.width;
+  const contentX = 78;
+  const contentWidth = pageWidth - 156;
+  const safeSender = senderName || 'Someone special';
+  const safeRecipient = recipientName || 'you';
+
+  doc.fillColor(template.accent)
+    .font('Helvetica')
+    .fontSize(11)
+    .text(occasion || 'A special moment', contentX, 105, { width: contentWidth, align: 'center' });
+
+  doc.moveTo(contentX + 60, 132)
+    .lineTo(pageWidth - contentX - 60, 132)
+    .lineWidth(0.6)
+    .strokeColor(template.border)
+    .stroke();
+
+  doc.fillColor(template.text)
+    .font(template.font)
+    .fontSize(template.fontSize)
+    .text(`Dear ${safeRecipient},`, contentX, 165, { width: contentWidth, lineGap: template.lineGap });
+
+  doc.moveDown(1.1);
+  doc.text(text, {
+    width: contentWidth,
+    align: 'left',
+    lineGap: template.lineGap,
+    paragraphGap: 8
+  });
+
+  doc.moveDown(1.4);
+  doc.font('Helvetica-Oblique')
+    .fontSize(12)
+    .fillColor(template.accent)
+    .text(`With love, ${safeSender}`, { width: contentWidth, align: 'right' });
+
+  doc.end();
+});
+
+const generatePremiumPoemBundle = async (gift, languageName) => {
+  const finalText = await generatePremiumPoemText(gift, languageName);
+  const result = {
+    type: 'poem',
+    text: finalText,
+    poem: { text: finalText },
+    isPremiumPoem: true,
+    length: gift.length || gift.poemLength || 'medium',
+    handwritingStyle: gift.handwritingStyle || 'soft-minimal'
+  };
+
+  try {
+    result.handwrittenPdf = await generateHandwrittenPdf({
+      text: finalText,
+      recipientName: gift.recipientName,
+      senderName: gift.senderName,
+      occasion: gift.occasion,
+      handwritingStyle: gift.handwritingStyle || 'soft-minimal'
+    });
+    result.pdfUrl = result.handwrittenPdf.dataUrl;
+  } catch (pdfError) {
+    console.error('Premium poem PDF generation failed:', pdfError.message);
+    result.pdfError = 'Handwritten PDF generation failed. Text is still available.';
+  }
+
+  return result;
 };
 
 // Generate song using OpenAI for lyrics and Suno API for audio (fallback to ElevenLabs)
@@ -375,6 +879,13 @@ const generateContent = async (gift) => {
     language = 'en',
     relationship = '',
     senderMessage = '',
+    personalityTraits = [],
+    handwritingStyle = 'soft-minimal',
+    voiceStyle = 'warm-gentle',
+    length = 'medium',
+    poemLength = '',
+    senderName = 'Someone special',
+    includePremiumBundle = true,
     regenerateOptions = [],
     isRegenerate = false,
     voiceStyleId
@@ -403,8 +914,26 @@ const generateContent = async (gift) => {
 
   switch (giftType) {
     case 'poem':
-      prompt = `Write a ${tone} poem in ${languageName} for ${recipientName} for a ${occasion} based on these memories: ${memories.join(', ')}.`;
-      break;
+      if (!includePremiumBundle) {
+        prompt = `Write a ${tone} poem in ${languageName} for ${recipientName} for a ${occasion} based on these memories: ${memories.join(', ')}.`;
+        break;
+      }
+      return generatePremiumPoemBundle({
+        ...gift,
+        recipientName,
+        tone,
+        memories,
+        occasion,
+        relationship,
+        senderMessage,
+        personalityTraits,
+        handwritingStyle,
+        voiceStyle,
+        length: length || poemLength || 'medium',
+        poemLength: poemLength || length || 'medium',
+        senderName,
+        voiceStyleId
+      }, languageName);
     case 'letter':
       prompt = `Write a heartfelt letter in ${languageName} to ${recipientName} in a ${tone} tone for a ${occasion}. Include these moments: ${memories.join(', ')}.`;
       break;
@@ -447,7 +976,19 @@ const generateContent = async (gift) => {
       }
       break;
     case 'voice':
-      prompt = `Write a short, ${tone} voice message in ${languageName} for ${recipientName} for a ${occasion} based on these memories: ${memories.join(', ')}. Keep it concise, suitable for a 30-60 second audio clip.`;
+      prompt = `Write a short ${tone} voice message in ${languageName} for ${recipientName} for a ${occasion}.
+
+Use these real details:
+- Recipient name: ${recipientName}
+- Relationship: ${relationship || 'friend'}
+- Shared memory: ${memories.join(', ') || 'a meaningful shared moment'}
+- Sender message: ${senderMessage || 'No custom message provided'}
+
+Rules:
+- Output only the spoken message
+- Do not include stage directions, labels, brackets, pauses, or placeholders
+- Do not write "[Recipient's Name]" or any other bracketed text
+- Keep it natural, personal, and suitable for a 30-60 second audio clip`;
       break;
     case 'illustration':
       prompt = `Write a ${tone} descriptive text in ${languageName} for an artistic illustration dedicated to ${recipientName} for a ${occasion}, inspired by these memories: ${memories.join(', ')}. Include visual elements and emotional themes.`;
@@ -490,41 +1031,21 @@ const generateContent = async (gift) => {
     }
 
     if (giftType === 'voice') {
-        let voiceIdToUse = 'wyWA56cQNU2KqUW4eCsI'; // Fallback
-        try {
-            const activeVoice = await VoiceStyle.findOne({ isActive: true });
-            if (activeVoice) voiceIdToUse = activeVoice.voiceId;
-        } catch (e) {
-            console.warn('Failed to get active voice:', e);
-        }
-        // ElevenLabs call with voiceIdToUse
-        const voiceResponse = await axios.post(
-          `https://api.elevenlabs.io/v1/text-to-speech/${voiceIdToUse}`,
-          {
-            text: textContent,
-            voice_settings: {
-              stability: 0.5,
-              similarity_boost: 0.5,
-            },
-          },
-          {
-            headers: {
-              'Accept': 'audio/mpeg',
-              'Content-Type': 'application/json',
-              'xi-api-key': process.env.ELEVENLABS_API_KEY,
-            },
-            responseType: 'arraybuffer',
-          }
-        );
+        const narration = await generateElevenLabsNarration({
+          text: textContent,
+          voiceStyle,
+          voiceStyleId
+        });
 
         console.log('ElevenLabs response received');
-        
-        // Track ElevenLabs usage
-        await apiTracker.trackAPIUsage('elevenlabs', 1, textContent.length);
 
         return {
           text: textContent,
-          audio: Buffer.from(voiceResponse.data).toString('base64'),
+          audio: narration.audio,
+          audioUrl: narration.audioUrl,
+          voiceStyle: narration.voiceStyle,
+          voiceStyleLabel: narration.voiceStyleLabel,
+          settings: narration.settings
         };
       }
 
@@ -577,6 +1098,10 @@ const generateContent = async (gift) => {
 
       return textContent;
     } catch (error) {
+      if (error.isExternalApiError) {
+        throw error;
+      }
+
       console.error(`${giftType === 'voice' ? 'ElevenLabs/ChatGPT' : 'ChatGPT'} API error:`, error.response?.data || error.message);
       
       // Track error properly

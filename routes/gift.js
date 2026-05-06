@@ -15,6 +15,14 @@ import { isPlanActive, resolvePlanDates } from '../utils/subscriptionUtils.js';
 
 const router = express.Router();
 
+const getSafeErrorLog = (error) => ({
+  message: error.message,
+  statusCode: error.statusCode || error.response?.status || 500,
+  provider: error.provider || null,
+  externalCode: error.externalCode || error.response?.data?.error?.code || error.response?.data?.error?.type || null,
+  safeDetails: error.safeDetails || null
+});
+
 const deliverGiftForSubscription = async (gift, buyerEmail) => {
   try {
     if (!gift || gift.deliveryMethod !== 'email' || !gift.deliveryEmail) {
@@ -134,6 +142,11 @@ router.post('/generate', optionalAuth, checkSubscriptionLimit, async (req, res) 
       relationship,
       occasion,
       senderMessage,
+      personalityTraits,
+      handwritingStyle,
+      voiceStyle,
+      length,
+      poemLength,
       deliveryMethod,
       deliveryEmail,
       scheduledDate,
@@ -165,6 +178,12 @@ router.post('/generate', optionalAuth, checkSubscriptionLimit, async (req, res) 
           occasion,
           language, // Pass language parameter
           senderMessage,
+          personalityTraits,
+          handwritingStyle,
+          voiceStyle,
+          length,
+          poemLength,
+          includePremiumBundle: false,
           regenerateOptions,
           isRegenerate
         }),
@@ -177,6 +196,9 @@ router.post('/generate', optionalAuth, checkSubscriptionLimit, async (req, res) 
           occasion,
           language, // Pass language parameter
           senderMessage,
+          personalityTraits,
+          handwritingStyle,
+          voiceStyle,
           regenerateOptions,
           isRegenerate
         }),
@@ -189,6 +211,9 @@ router.post('/generate', optionalAuth, checkSubscriptionLimit, async (req, res) 
           occasion,
           language, // Pass language parameter
           senderMessage,
+          personalityTraits,
+          handwritingStyle,
+          voiceStyle,
           regenerateOptions,
           isRegenerate
         }),
@@ -201,6 +226,9 @@ router.post('/generate', optionalAuth, checkSubscriptionLimit, async (req, res) 
           occasion,
           language, // Pass language parameter
           senderMessage,
+          personalityTraits,
+          handwritingStyle,
+          voiceStyle,
           regenerateOptions,
           isRegenerate
         })
@@ -229,6 +257,11 @@ router.post('/generate', optionalAuth, checkSubscriptionLimit, async (req, res) 
         occasion,
         language, // Pass language parameter
         senderMessage,
+        personalityTraits,
+        handwritingStyle,
+        voiceStyle,
+        length,
+        poemLength,
         regenerateOptions,
         isRegenerate,
         voiceStyleId,
@@ -355,6 +388,9 @@ router.post('/generate', optionalAuth, checkSubscriptionLimit, async (req, res) 
 
     const effectivePrice = subscriptionCoversGift ? 0 : getPrice(giftType);
     const linkedPlanDates = linkedSubscription ? resolvePlanDates(linkedSubscription) : null;
+    const normalizedPersonalityTraits = Array.isArray(personalityTraits)
+      ? personalityTraits.map(trait => String(trait || '').trim()).filter(Boolean)
+      : String(personalityTraits || '').split(/[\n,]+/).map(trait => trait.trim()).filter(Boolean);
 
     const giftDoc = new Gift({
       giftType,
@@ -362,12 +398,16 @@ router.post('/generate', optionalAuth, checkSubscriptionLimit, async (req, res) 
       senderName: senderName || 'Someone special',
       tone,
       memories: memories || [],
+      personalityTraits: normalizedPersonalityTraits,
       relationship: relationship || 'friend',
       occasion: occasion || 'special occasion',
       generatedContent: typeof formattedContent === 'object' ? formattedContent : { text: formattedContent },
-      audioContent: formattedContent?.components?.voice?.audioUrl || formattedContent?.voiceMessage?.audioUrl || null,
+      audioContent: formattedContent?.components?.voice?.audioUrl || formattedContent?.voiceMessage?.audioUrl || formattedContent?.audioUrl || null,
       videoContent: formattedContent?.components?.video?.videoUrl || formattedContent?.videoUrl || null, // Add video content
       senderMessage: senderMessage || '',
+      handwritingStyle: handwritingStyle || '',
+      voiceStyleName: voiceStyle || '',
+      poemLength: length || poemLength || '',
       deliveryMethod: deliveryMethod || '',
       deliveryEmail: deliveryEmail || '',
       buyerEmail: userEmail,
@@ -554,8 +594,8 @@ router.post('/generate', optionalAuth, checkSubscriptionLimit, async (req, res) 
           recipientName,
           recipientEmail: deliveryEmail,
           price: effectivePrice,
-          generatedContent: typeof formattedContent === 'object' ? formattedContent.text || formattedContent : formattedContent,
-          audioContent: formattedContent?.voiceMessage?.audioUrl || null,
+          generatedContent: formattedContent,
+          audioContent: formattedContent?.voiceMessage?.audioUrl || formattedContent?.audioUrl || formattedContent?.components?.voice?.audioUrl || null,
           buyerName: userName,
           giftId: giftDoc._id,
           isSubscriptionGift: subscriptionCoversGift,
@@ -619,7 +659,7 @@ router.post('/generate', optionalAuth, checkSubscriptionLimit, async (req, res) 
 
     res.json(response);
   } catch (error) {
-    console.error('Error in /api/gift/generate:', error);
+    console.error('Error in /api/gift/generate:', getSafeErrorLog(error));
 
     // Handle database timeout errors
     if (error.name === 'MongoNetworkTimeoutError' || error.message.includes('timed out') || error.message.includes('connection')) {
@@ -629,11 +669,13 @@ router.post('/generate', optionalAuth, checkSubscriptionLimit, async (req, res) 
       });
     }
 
-    // Send a more detailed error message to help with debugging
-    res.status(500).json({
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({
       message: 'Failed to generate gift. Please try again.',
       error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      provider: error.provider,
+      code: error.externalCode,
+      details: process.env.NODE_ENV === 'development' ? error.safeDetails : undefined
     });
   }
 });

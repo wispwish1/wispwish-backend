@@ -114,6 +114,62 @@ const prepareAttachment = async (url, filename, contentType, cid = null, maxRetr
     return null;
 };
 
+const extractGiftText = (generatedContent) => {
+    if (!generatedContent) return '';
+    if (typeof generatedContent === 'string') return generatedContent;
+    if (generatedContent.text) return generatedContent.text;
+    if (generatedContent.poem?.text) return generatedContent.poem.text;
+    if (generatedContent.content) return generatedContent.content;
+    return '';
+};
+
+const bufferFromDataUrlOrBase64 = (value, expectedPrefix = '') => {
+    if (!value || typeof value !== 'string') return null;
+
+    try {
+        if (expectedPrefix && value.startsWith(expectedPrefix)) {
+            return Buffer.from(value.split(',')[1], 'base64');
+        }
+
+        if (value.startsWith('data:')) {
+            return Buffer.from(value.split(',')[1], 'base64');
+        }
+
+        return Buffer.from(value, 'base64');
+    } catch (error) {
+        console.error('Failed to convert base64 attachment:', error.message);
+        return null;
+    }
+};
+
+const addPremiumPoemAttachments = (attachments, generatedContent, recipientName = 'gift') => {
+    if (!generatedContent || typeof generatedContent !== 'object') return;
+
+    const safeName = String(recipientName || 'gift').replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '') || 'gift';
+
+    const pdf = generatedContent.handwrittenPdf;
+    const pdfBuffer = bufferFromDataUrlOrBase64(pdf?.dataUrl || pdf?.base64, 'data:application/pdf');
+    if (pdfBuffer) {
+        attachments.push({
+            filename: pdf.fileName || `wispwish_handwritten_${safeName}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf'
+        });
+        console.log('✅ Handwritten PDF attachment added');
+    }
+
+    const voice = generatedContent.voiceMessage;
+    const audioBuffer = bufferFromDataUrlOrBase64(voice?.audioUrl || voice?.audio, 'data:audio');
+    if (audioBuffer) {
+        attachments.push({
+            filename: `wispwish_voice_${safeName}.mp3`,
+            content: audioBuffer,
+            contentType: 'audio/mpeg'
+        });
+        console.log('✅ Premium poem voice attachment added');
+    }
+};
+
 /**
  * Generate WishKnot confirmation section with actual message content
  */
@@ -519,6 +575,9 @@ const sendOrderConfirmation = async (userEmail, orderData) => {
         const cleanUserEmail = userEmail ? userEmail.replace(/`/g, '') : userEmail;
         const transporter = createTransporter();
         let attachments = [];
+        if (orderData.giftType === 'poem') {
+            addPremiumPoemAttachments(attachments, orderData.generatedContent, orderData.recipientName);
+        }
         
         console.log(`📧 Preparing order confirmation for ${cleanUserEmail}, giftType: ${orderData.giftType}`);
 
@@ -892,6 +951,9 @@ const sendGiftEmail = async (gift) => {
         
         let giftContent = '';
         let attachments = [];
+        if (giftType === 'poem') {
+            addPremiumPoemAttachments(attachments, generatedContent, recipientName);
+        }
         
         console.log(`📧 Preparing ${giftType} gift email for ${recipientName} to ${deliveryEmail}`);
 
@@ -936,6 +998,11 @@ const sendGiftEmail = async (gift) => {
                             <div style="font-style: italic; color: #333; line-height: 1.8; font-size: 16px;">
                                 ${poemContent.replace(/\n/g, '<br>')}
                             </div>
+                            ${generatedContent?.isPremiumPoem ? `
+                            <p style="color: #666; font-size: 14px; margin-top: 18px;">
+                                Your handwritten PDF keepsake and voice version are attached to this email.
+                            </p>
+                            ` : ''}
                         </div>
                     `;
                 }

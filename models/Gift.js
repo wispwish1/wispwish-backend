@@ -18,11 +18,29 @@ const giftSchema = new mongoose.Schema({
   tone: {
     type: String,
     required: true,
-    enum: ['romantic', 'funny', 'heartfelt', 'inspirational'],
+    enum: ['romantic', 'funny', 'heartfelt', 'inspirational', 'deep', 'comforting', 'calm', 'joyful', 'playful'],
   },
   memories: {
     type: [String],
     default: [],
+  },
+  personalityTraits: {
+    type: [String],
+    default: [],
+  },
+  handwritingStyle: {
+    type: String,
+    enum: ['elegant-script', 'soft-minimal', 'playful-handwritten', ''],
+    default: '',
+  },
+  voiceStyleName: {
+    type: String,
+    default: '',
+  },
+  poemLength: {
+    type: String,
+    enum: ['short', 'medium', 'long', ''],
+    default: '',
   },
   genre: {
     type: String,
@@ -40,10 +58,6 @@ const giftSchema = new mongoose.Schema({
   videoContent: {
     type: String, // Video URL for video gifts
     required: false,
-  },
-  voiceStyleName: {
-    type: String,
-    default: '',
   },
   images: {
     type: [{ _id: String, url: String }],
