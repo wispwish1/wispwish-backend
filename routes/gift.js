@@ -12,7 +12,7 @@ import VoiceStyle from '../models/VoiceStyle.js';
 import WishKnot from '../models/WishKnot.js'; // Add WishKnot model
 import { canCreateGift, checkSubscriptionLimit, incrementGiftCount } from '../middleware/subscriptionLimit.js';
 import { isPlanActive, resolvePlanDates } from '../utils/subscriptionUtils.js';
-
+ 
 const router = express.Router();
 
 const getSafeErrorLog = (error) => ({
@@ -28,10 +28,8 @@ const deliverGiftForSubscription = async (gift, buyerEmail) => {
     if (!gift || gift.deliveryMethod !== 'email' || !gift.deliveryEmail) {
       return;
     }
-
     const now = new Date();
     const scheduledDate = gift.scheduledDate ? new Date(gift.scheduledDate) : now;
-
     if (scheduledDate > now) {
       gift.deliveryStatus = 'scheduled';
       await gift.save();
@@ -1139,5 +1137,3 @@ router.post('/send-for-subscriber', optionalAuth, async (req, res) => {
 });
 
 export default router;
-
-
