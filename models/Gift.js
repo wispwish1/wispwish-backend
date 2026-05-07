@@ -37,6 +37,11 @@ const giftSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  voiceGender: {
+    type: String,
+    enum: ['female', 'male', 'other', 'unknown', ''],
+    default: '',
+  },
   poemLength: {
     type: String,
     enum: ['short', 'medium', 'long', ''],

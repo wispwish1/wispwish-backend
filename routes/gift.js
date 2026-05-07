@@ -151,6 +151,7 @@ router.post('/generate', optionalAuth, checkSubscriptionLimit, async (req, res) 
       senderName,
       buyerEmail,
       voiceStyleId,
+      voiceGender,
       scheduledTimezone,
       scheduledOffsetMinutes,
       language, // Add language parameter
@@ -194,9 +195,14 @@ router.post('/generate', optionalAuth, checkSubscriptionLimit, async (req, res) 
           occasion,
           language, // Pass language parameter
           senderMessage,
+          senderName,
           personalityTraits,
           handwritingStyle,
           voiceStyle,
+          voiceGender,
+          length,
+          poemLength,
+          voiceStyleId,
           regenerateOptions,
           isRegenerate
         }),
@@ -255,6 +261,7 @@ router.post('/generate', optionalAuth, checkSubscriptionLimit, async (req, res) 
         occasion,
         language, // Pass language parameter
         senderMessage,
+        senderName,
         personalityTraits,
         handwritingStyle,
         voiceStyle,
@@ -263,6 +270,7 @@ router.post('/generate', optionalAuth, checkSubscriptionLimit, async (req, res) 
         regenerateOptions,
         isRegenerate,
         voiceStyleId,
+        voiceGender,
       });
     }
 
@@ -305,6 +313,10 @@ router.post('/generate', optionalAuth, checkSubscriptionLimit, async (req, res) 
       formattedContent = {
         text: generatedContent.text,
         audioUrl: audioUrl, // Added top-level audioUrl for frontend simplicity
+        voiceStyle: generatedContent.voiceStyle || voiceStyle || '',
+        voiceStyleLabel: generatedContent.voiceStyleLabel || '',
+        voiceGender: generatedContent.voiceGender || voiceGender || '',
+        voiceTone: generatedContent.tone || tone || '',
         voiceMessage: {
           script: generatedContent.text,
           audioUrl: audioUrl,
@@ -405,6 +417,7 @@ router.post('/generate', optionalAuth, checkSubscriptionLimit, async (req, res) 
       senderMessage: senderMessage || '',
       handwritingStyle: handwritingStyle || '',
       voiceStyleName: voiceStyle || '',
+      voiceGender: voiceGender || '',
       poemLength: length || poemLength || '',
       deliveryMethod: deliveryMethod || '',
       deliveryEmail: deliveryEmail || '',

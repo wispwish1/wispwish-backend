@@ -254,6 +254,88 @@ const VOICE_STYLE_OPTIONS = {
   }
 };
 
+const VOICE_TONE_SETTINGS = {
+  funny: { stability: 0.28, similarity_boost: 0.76, style: 0.82, use_speaker_boost: true },
+  playful: { stability: 0.30, similarity_boost: 0.76, style: 0.84, use_speaker_boost: true },
+  joyful: { stability: 0.32, similarity_boost: 0.78, style: 0.78, use_speaker_boost: true },
+  romantic: { stability: 0.42, similarity_boost: 0.86, style: 0.62, use_speaker_boost: true },
+  heartfelt: { stability: 0.50, similarity_boost: 0.82, style: 0.48, use_speaker_boost: true },
+  deep: { stability: 0.72, similarity_boost: 0.74, style: 0.28, use_speaker_boost: true },
+  comforting: { stability: 0.70, similarity_boost: 0.78, style: 0.24, use_speaker_boost: true },
+  calm: { stability: 0.72, similarity_boost: 0.76, style: 0.22, use_speaker_boost: true },
+  inspirational: { stability: 0.58, similarity_boost: 0.80, style: 0.44, use_speaker_boost: true }
+};
+
+const VOICE_TONE_PROMPT_PROFILES = {
+  romantic: {
+    delivery: 'Soft, intimate, unhurried, and affectionate, like a private voice note.',
+    wording: 'Use tender details, gentle emotional warmth, and close personal language without becoming dramatic.',
+    must: 'The message should feel romantic from the first sentence through the ending.',
+    temperature: 0.72
+  },
+  funny: {
+    delivery: 'Light, amused, naturally witty, and conversational, like talking to a best friend.',
+    wording: 'Use one affectionate tease or humorous contrast from the provided details. Keep it warm, never insulting.',
+    must: 'The message must actually sound amused and lightly teasing, not plain or formal.',
+    temperature: 0.84
+  },
+  playful: {
+    delivery: 'Bright, energetic, spontaneous, and fun, like an excited voice note.',
+    wording: 'Use bouncy sentence rhythm, lively wording, and small playful turns of phrase.',
+    must: 'The message should feel upbeat and playful without becoming childish.',
+    temperature: 0.84
+  },
+  joyful: {
+    delivery: 'Bright, expressive, smiling, and warm, with natural excitement.',
+    wording: 'Use lively phrasing, gratitude, and happy momentum without sounding fake.',
+    must: 'The message should feel cheerful and celebratory throughout.',
+    temperature: 0.80
+  },
+  heartfelt: {
+    delivery: 'Sincere, personal, gently emotional, and grounded.',
+    wording: 'Use direct emotional honesty and specific details without generic greeting-card lines.',
+    must: 'The message should feel heartfelt and personal, not overly polished.',
+    temperature: 0.74
+  },
+  deep: {
+    delivery: 'Reflective, slower, meaningful, and genuine.',
+    wording: 'Use thoughtful phrasing, emotional depth, and careful pacing.',
+    must: 'The message should feel reflective and touching, not casual or jokey.',
+    temperature: 0.68
+  },
+  comforting: {
+    delivery: 'Gentle, calm, supportive, and steady, like a warm hug in words.',
+    wording: 'Use reassuring language, softness, and emotional safety without making grand promises.',
+    must: 'The message should feel calming and supportive from start to finish.',
+    temperature: 0.66
+  },
+  calm: {
+    delivery: 'Gentle, calm, supportive, and steady, like a warm hug in words.',
+    wording: 'Use simple, grounded language with soft pacing and no sudden emotional jumps.',
+    must: 'The message should feel calm and steady throughout.',
+    temperature: 0.66
+  },
+  inspirational: {
+    delivery: 'Grounded, hopeful, warm, and quietly uplifting.',
+    wording: 'Use encouragement and hope without sounding like a motivational poster.',
+    must: 'The message should feel encouraging but still personal and human.',
+    temperature: 0.72
+  }
+};
+
+const ELEVENLABS_DEFAULT_VOICES = {
+  female: {
+    voiceId: '21m00Tcm4TlvDq8ikWAM',
+    label: 'Rachel',
+    gender: 'female'
+  },
+  male: {
+    voiceId: 'pNInz6obpgDQGcFmaJgB',
+    label: 'Adam',
+    gender: 'male'
+  }
+};
+
 const HANDWRITING_TEMPLATES = {
   'elegant-script': {
     label: 'Elegant Script',
@@ -298,6 +380,19 @@ const getVoiceStyleOption = (voiceStyle = 'warm-gentle') => (
   VOICE_STYLE_OPTIONS[voiceStyle] || VOICE_STYLE_OPTIONS['warm-gentle']
 );
 
+const getVoiceToneSettings = (tone = 'heartfelt') => (
+  VOICE_TONE_SETTINGS[tone] || VOICE_TONE_SETTINGS.heartfelt
+);
+
+const getVoiceTonePromptProfile = (tone = 'heartfelt') => (
+  VOICE_TONE_PROMPT_PROFILES[tone] || VOICE_TONE_PROMPT_PROFILES.heartfelt
+);
+
+const getVoiceDeliverySettings = (voiceStyle, tone) => ({
+  ...getVoiceStyleOption(voiceStyle).settings,
+  ...getVoiceToneSettings(tone)
+});
+
 const getHandwritingTemplate = (handwritingStyle = 'soft-minimal') => (
   HANDWRITING_TEMPLATES[handwritingStyle] || HANDWRITING_TEMPLATES['soft-minimal']
 );
@@ -332,12 +427,12 @@ const createExternalApiError = (provider, error) => {
   const providerName = provider === 'openai' ? 'OpenAI' : provider === 'elevenlabs' ? 'ElevenLabs' : provider;
 
   let message = `${providerName} request failed. Please try again.`;
-  if (status === 429) {
+  if (provider === 'elevenlabs' && errorCode === 'detected_unusual_activity') {
+    message = 'ElevenLabs blocked this request because it detected unusual activity on the account/API key. Check the ElevenLabs dashboard, billing, and API key, then try again.';
+  } else if (status === 429) {
     message = `${providerName} rate limit or account quota was reached. Check the API key billing/quota, then try again.`;
   } else if (status === 401 || status === 403) {
     message = `${providerName} API key is invalid or does not have access. Check the environment key.`;
-  } else if (provider === 'elevenlabs' && errorCode === 'detected_unusual_activity') {
-    message = 'ElevenLabs blocked this request because it detected unusual activity on the account/API key. Check the ElevenLabs dashboard, billing, and API key, then try again.';
   } else if (apiError.message) {
     message = apiError.message;
   }
@@ -481,14 +576,31 @@ ${draft}`
   }
 };
 
-const resolveElevenLabsVoice = async ({ voiceStyleId, voiceStyle }) => {
+const resolveElevenLabsVoice = async ({ voiceStyleId, voiceStyle, voiceGender }) => {
   const styleOption = getVoiceStyleOption(voiceStyle);
+  const requestedGender = String(voiceGender || '').toLowerCase();
+  const normalizedGender = ['male', 'female'].includes(requestedGender) ? requestedGender : '';
 
   try {
     if (voiceStyleId) {
       const selectedVoice = await VoiceStyle.findById(voiceStyleId);
       if (selectedVoice?.voiceId) {
-        return { voiceId: selectedVoice.voiceId, label: selectedVoice.name || styleOption.label };
+        const selectedGender = String(selectedVoice.gender || '').toLowerCase();
+        const genderMatches =
+          !normalizedGender ||
+          !selectedGender ||
+          selectedGender === 'unknown' ||
+          selectedGender === normalizedGender;
+
+        if (genderMatches) {
+          return {
+            voiceId: selectedVoice.voiceId,
+            label: selectedVoice.name || styleOption.label,
+            gender: selectedGender && selectedGender !== 'unknown' ? selectedGender : normalizedGender
+          };
+        }
+
+        console.warn(`Selected voiceStyleId gender (${selectedGender}) does not match requested gender (${normalizedGender}); using gender-safe fallback.`);
       }
     }
   } catch (error) {
@@ -496,7 +608,19 @@ const resolveElevenLabsVoice = async ({ voiceStyleId, voiceStyle }) => {
   }
 
   try {
-    const activeVoices = await VoiceStyle.find({ isActive: true }).sort({ isDefault: -1, createdAt: -1 });
+    let activeVoices = await VoiceStyle.find({
+      isActive: true,
+      ...(normalizedGender ? { gender: normalizedGender } : {})
+    }).sort({ isDefault: -1, createdAt: -1 });
+
+    if (!activeVoices.length && normalizedGender) {
+      const genderDefault = ELEVENLABS_DEFAULT_VOICES[normalizedGender];
+      if (genderDefault) {
+        console.warn(`No active ${normalizedGender} voices found, using ElevenLabs ${genderDefault.label} fallback.`);
+        return genderDefault;
+      }
+    }
+
     const matchedVoice = activeVoices.find(voice => {
       const haystack = `${voice.name || ''} ${voice.accent || ''}`.toLowerCase();
       return styleOption.searchTerms.some(term => haystack.includes(term));
@@ -504,18 +628,25 @@ const resolveElevenLabsVoice = async ({ voiceStyleId, voiceStyle }) => {
     const fallbackVoice = matchedVoice || activeVoices.find(voice => voice.isDefault) || activeVoices[0];
 
     if (fallbackVoice?.voiceId) {
-      return { voiceId: fallbackVoice.voiceId, label: fallbackVoice.name || styleOption.label };
+      const fallbackGender = String(fallbackVoice.gender || '').toLowerCase();
+      return {
+        voiceId: fallbackVoice.voiceId,
+        label: fallbackVoice.name || styleOption.label,
+        gender: fallbackGender && fallbackGender !== 'unknown' ? fallbackGender : normalizedGender
+      };
     }
   } catch (error) {
     console.warn('Failed to query voice styles, using hard-coded fallback voice:', error.message);
   }
 
-  return { voiceId: 'wyWA56cQNU2KqUW4eCsI', label: styleOption.label };
+  const finalDefault = ELEVENLABS_DEFAULT_VOICES[normalizedGender] || ELEVENLABS_DEFAULT_VOICES.female;
+  return finalDefault;
 };
 
-const generateElevenLabsNarration = async ({ text, voiceStyle, voiceStyleId }) => {
+const generateElevenLabsNarration = async ({ text, voiceStyle, voiceStyleId, voiceGender, tone }) => {
   const styleOption = getVoiceStyleOption(voiceStyle);
-  const { voiceId, label } = await resolveElevenLabsVoice({ voiceStyleId, voiceStyle });
+  const { voiceId, label, gender } = await resolveElevenLabsVoice({ voiceStyleId, voiceStyle, voiceGender });
+  const deliverySettings = getVoiceDeliverySettings(voiceStyle, tone);
 
   try {
     const voiceResponse = await axios.post(
@@ -523,7 +654,7 @@ const generateElevenLabsNarration = async ({ text, voiceStyle, voiceStyleId }) =
       {
         text,
         model_id: 'eleven_multilingual_v2',
-        voice_settings: styleOption.settings,
+        voice_settings: deliverySettings,
       },
       {
         headers: {
@@ -545,7 +676,9 @@ const generateElevenLabsNarration = async ({ text, voiceStyle, voiceStyleId }) =
       audioUrl: `data:audio/mpeg;base64,${base64}`,
       voiceStyle: voiceStyle || 'warm-gentle',
       voiceStyleLabel: label,
-      settings: styleOption.settings,
+      voiceGender: gender || voiceGender || '',
+      tone: tone || 'heartfelt',
+      settings: deliverySettings,
       duration: null
     };
   } catch (error) {
@@ -563,7 +696,67 @@ const generateHandwrittenPdf = async ({
   occasion,
   handwritingStyle
 }) => new Promise((resolve, reject) => {
-  const template = getHandwritingTemplate(handwritingStyle);
+  const templates = {
+    'elegant-script': {
+      label: 'Elegant Script',
+      pageBg: '#FDF2F8',
+      pageBgMid: '#FAF5FF',
+      pageBgEnd: '#EEF2FF',
+      headerBg: '#FCE7F3',
+      headerBgEnd: '#EDE9FE',
+      borderOuter: '#EC4899',
+      borderInner: '#C4B5FD',
+      dotColor: '#A855F7',
+      badgeBg: '#EC4899',
+      badgeBgEnd: '#8B5CF6',
+      badgeText: '#FFFFFF',
+      salutation: '#831843',
+      poemText: '#3B0764',
+      divider: '#A855F7',
+      signature: '#BE185D',
+      footer: '#7C3AED'
+    },
+    'soft-minimal': {
+      label: 'Soft Minimal',
+      pageBg: '#FDF2F8',
+      pageBgMid: '#F5F3FF',
+      pageBgEnd: '#EEF2FF',
+      headerBg: '#FCE7F3',
+      headerBgEnd: '#EDE9FE',
+      borderOuter: '#EC4899',
+      borderInner: '#D8B4FE',
+      dotColor: '#8B5CF6',
+      badgeBg: '#EC4899',
+      badgeBgEnd: '#8B5CF6',
+      badgeText: '#FFFFFF',
+      salutation: '#7E22CE',
+      poemText: '#312E81',
+      divider: '#8B5CF6',
+      signature: '#DB2777',
+      footer: '#7C3AED'
+    },
+    'playful-handwritten': {
+      label: 'Playful Handwritten',
+      pageBg: '#FDF2F8',
+      pageBgMid: '#EEF2FF',
+      pageBgEnd: '#DBEAFE',
+      headerBg: '#EDE9FE',
+      headerBgEnd: '#FCE7F3',
+      borderOuter: '#6366F1',
+      borderInner: '#F9A8D4',
+      dotColor: '#EC4899',
+      badgeBg: '#8B5CF6',
+      badgeBgEnd: '#6366F1',
+      badgeText: '#FFFFFF',
+      salutation: '#4338CA',
+      poemText: '#1E1B4B',
+      divider: '#EC4899',
+      signature: '#DB2777',
+      footer: '#6366F1'
+    }
+  };
+
+  const template = templates[handwritingStyle] || templates['soft-minimal'];
   const doc = new PDFDocument({
     size: 'A4',
     margin: 0,
@@ -573,25 +766,120 @@ const generateHandwrittenPdf = async ({
     }
   });
   const chunks = [];
+  const pageWidth = 595.28;
+  const pageHeight = 841.89;
+  const safeRecipient = recipientName || 'Friend';
+  const safeSender = senderName || 'Someone special';
+  const safeOccasion = occasion || 'Special Occasion';
+  const occasionLabel = safeOccasion
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, letter => letter.toUpperCase());
 
-  const drawTemplate = () => {
-    const { width, height } = doc.page;
+  const dotCount = 15;
+  const dotSpacing = (pageWidth - 120) / (dotCount - 1);
+  const middleDot = String.fromCharCode(183);
+
+  const createGradient = (x1, y1, x2, y2, startColor, endColor, midColor) => {
+    const gradient = doc.linearGradient(x1, y1, x2, y2);
+    gradient.stop(0, startColor);
+    if (midColor) {
+      gradient.stop(0.55, midColor);
+    }
+    gradient.stop(1, endColor || startColor);
+    return gradient;
+  };
+
+  const drawFrame = () => {
+    const pageGradient = createGradient(
+      0,
+      0,
+      pageWidth,
+      pageHeight,
+      template.pageBg,
+      template.pageBgEnd,
+      template.pageBgMid
+    );
+    doc.rect(0, 0, pageWidth, pageHeight).fill(pageGradient);
+
+    doc.roundedRect(20, 20, pageWidth - 40, pageHeight - 40, 12)
+      .lineWidth(2)
+      .strokeColor(template.borderOuter)
+      .stroke();
+
+    doc.roundedRect(30, 30, pageWidth - 60, pageHeight - 60, 8)
+      .lineWidth(0.8)
+      .strokeColor(template.borderInner)
+      .stroke();
+
+    const headerGradient = createGradient(
+      30,
+      pageHeight - 115,
+      pageWidth - 30,
+      pageHeight - 30,
+      template.headerBg,
+      template.headerBgEnd
+    );
+    doc.rect(30, pageHeight - 115, pageWidth - 60, 85).fill(headerGradient);
+
+    for (let i = 0; i < dotCount; i += 1) {
+      const x = 60 + i * dotSpacing;
+      const size = i % 3 === 1 ? 3 : 1.8;
+      doc.circle(x, 58, size).fill(template.dotColor);
+      doc.circle(x, pageHeight - 60, size).fill(template.dotColor);
+    }
+
+    doc.font('Helvetica')
+      .fontSize(7.5)
+      .fillColor(template.footer)
+      .text(`Created with love on WispWish  ${middleDot}  wispwish.com`, 0, 40, {
+        width: pageWidth,
+        align: 'center'
+      });
+
+    doc.font('Helvetica-Bold')
+      .fontSize(9)
+      .fillColor(template.signature)
+      .text('W  I  S  P  W  I  S  H', 0, pageHeight - 50, {
+        width: pageWidth,
+        align: 'center'
+      });
+
+    const badgeWidth = 140;
+    const badgeX = (pageWidth - badgeWidth) / 2;
+    const badgeY = pageHeight - 90;
+    const badgeGradient = createGradient(
+      badgeX,
+      badgeY,
+      badgeX + badgeWidth,
+      badgeY + 22,
+      template.badgeBg,
+      template.badgeBgEnd
+    );
+    doc.roundedRect(badgeX, badgeY, badgeWidth, 22, 8).fill(badgeGradient);
+    doc.font('Helvetica-Bold')
+      .fontSize(9)
+      .fillColor(template.badgeText)
+      .text(occasionLabel, badgeX, badgeY + 7, {
+        width: badgeWidth,
+        align: 'center'
+      });
+  };
+
+  const drawDivider = (y) => {
+    doc.moveTo(55, y)
+      .lineTo(pageWidth - 55, y)
+      .lineWidth(1)
+      .strokeColor(template.divider)
+      .stroke();
+
     doc.save();
-    doc.rect(0, 0, width, height).fill(template.background);
-    doc.lineWidth(1.4).strokeColor(template.border).roundedRect(38, 38, width - 76, height - 76, 18).stroke();
-    doc.fillColor(template.accent).font('Helvetica-Bold').fontSize(10).text('WispWish Keepsake', 0, 58, {
-      width,
-      align: 'center',
-      characterSpacing: 1.2
-    });
-    doc.font(template.font).fontSize(26).fillColor(template.accent).text(template.decoration, width - 82, 70, {
-      width: 30,
-      align: 'center'
-    });
+    doc.translate(pageWidth / 2, y).rotate(45);
+    doc.rect(-4, -4, 8, 8).fill(template.dotColor);
     doc.restore();
   };
 
   doc.on('data', chunk => chunks.push(chunk));
+  doc.on('error', reject);
   doc.on('end', () => {
     const buffer = Buffer.concat(chunks);
     const fileName = `wispwish-${slugifyFilename(recipientName)}-${slugifyFilename(occasion, 'occasion')}.pdf`;
@@ -604,46 +892,66 @@ const generateHandwrittenPdf = async ({
       templateName: template.label
     });
   });
-  doc.on('error', reject);
-  doc.on('pageAdded', drawTemplate);
 
-  drawTemplate();
+  drawFrame();
+  drawDivider(105);
 
-  const pageWidth = doc.page.width;
-  const contentX = 78;
-  const contentWidth = pageWidth - 156;
-  const safeSender = senderName || 'Someone special';
-  const safeRecipient = recipientName || 'you';
+  doc.font('Helvetica-BoldOblique')
+    .fontSize(15)
+    .fillColor(template.salutation)
+    .text(`Dear ${safeRecipient},`, 0, 124, {
+      width: pageWidth,
+      align: 'center'
+    });
 
-  doc.fillColor(template.accent)
-    .font('Helvetica')
-    .fontSize(11)
-    .text(occasion || 'A special moment', contentX, 105, { width: contentWidth, align: 'center' });
+  const contentX = 65;
+  const contentWidth = pageWidth - 130;
+  const lines = String(text || '').split(/\r?\n/);
+  const poemFontSize = lines.length > 24 ? 9.4 : 10.5;
+  const lineGap = lines.length > 24 ? 4 : 6;
+  const stanzaGap = lines.length > 24 ? 6 : 9;
+  let y = 162;
+  const bottomLimit = pageHeight - 175;
 
-  doc.moveTo(contentX + 60, 132)
-    .lineTo(pageWidth - contentX - 60, 132)
-    .lineWidth(0.6)
-    .strokeColor(template.border)
-    .stroke();
-
-  doc.fillColor(template.text)
-    .font(template.font)
-    .fontSize(template.fontSize)
-    .text(`Dear ${safeRecipient},`, contentX, 165, { width: contentWidth, lineGap: template.lineGap });
-
-  doc.moveDown(1.1);
-  doc.text(text, {
-    width: contentWidth,
-    align: 'left',
-    lineGap: template.lineGap,
-    paragraphGap: 8
-  });
-
-  doc.moveDown(1.4);
   doc.font('Helvetica-Oblique')
-    .fontSize(12)
-    .fillColor(template.accent)
-    .text(`With love, ${safeSender}`, { width: contentWidth, align: 'right' });
+    .fontSize(poemFontSize)
+    .fillColor(template.poemText);
+
+  for (const line of lines) {
+    const cleanLine = line.trim();
+    if (!cleanLine) {
+      y += stanzaGap;
+      continue;
+    }
+
+    const lineHeight = doc.heightOfString(cleanLine, {
+      width: contentWidth,
+      align: 'center',
+      lineGap
+    });
+
+    if (y + lineHeight > bottomLimit) {
+      break;
+    }
+
+    doc.text(cleanLine, contentX, y, {
+      width: contentWidth,
+      align: 'center',
+      lineGap
+    });
+    y += lineHeight + 3;
+  }
+
+  const dividerY = Math.min(y + 18, pageHeight - 145);
+  drawDivider(dividerY);
+
+  doc.font('Helvetica-BoldOblique')
+    .fontSize(11)
+    .fillColor(template.signature)
+    .text(`With love, ${safeSender}  ${String.fromCharCode(9829)}`, 0, dividerY + 16, {
+      width: pageWidth,
+      align: 'center'
+    });
 
   doc.end();
 });
@@ -887,7 +1195,8 @@ const generateContent = async (gift) => {
     includePremiumBundle = true,
     regenerateOptions = [],
     isRegenerate = false,
-    voiceStyleId
+    voiceStyleId,
+    voiceGender = ''
   } = gift;
 
   // Map language codes to full names for OpenAI
@@ -975,19 +1284,73 @@ const generateContent = async (gift) => {
       }
       break;
     case 'voice':
-      prompt = `Write a short ${tone} voice message in ${languageName} for ${recipientName} for a ${occasion}.
+      {
+        const voiceLengthMap = {
+          short: { instruction: 'Keep it under 40 words. Very brief and warm.', maxTokens: 100 },
+          medium: { instruction: 'Keep it between 60 to 90 words. Natural and personal.', maxTokens: 180 },
+          long: { instruction: 'Keep it between 100 to 130 words. Rich and heartfelt.', maxTokens: 250 }
+        };
+        const voiceLength = voiceLengthMap[length] || voiceLengthMap.medium;
+        const voiceToneProfile = getVoiceTonePromptProfile(tone);
+        const voiceTraits = normalizeTextList(personalityTraits);
+        const voiceMemories = normalizeTextList(memories);
 
-Use these real details:
-- Recipient name: ${recipientName}
-- Relationship: ${relationship || 'friend'}
-- Shared memory: ${memories.join(', ') || 'a meaningful shared moment'}
-- Sender message: ${senderMessage || 'No custom message provided'}
+        const systemPromptVoice = `You are writing a personal voice message that will be read aloud.
+
+Your job is to write something that sounds completely natural when spoken - not read.
 
 Rules:
-- Output only the spoken message
-- Do not include stage directions, labels, brackets, pauses, or placeholders
-- Do not write "[Recipient's Name]" or any other bracketed text
-- Keep it natural, personal, and suitable for a 30-60 second audio clip`;
+- Write as if the sender is speaking directly to the recipient
+- Use the recipient's name naturally 1-2 times - not robotically
+- Every personality trait provided MUST subtly appear in how you describe the person
+- Every memory provided MUST be specifically mentioned - do not drop any detail
+- Make the selected tone obvious in the wording, sentence rhythm, and emotional energy
+- Match the selected tone precisely and keep it consistent throughout
+- Do not flatten the message into a generic heartfelt style when another tone is selected
+- NO stage directions, NO brackets, NO labels, NO placeholders like [pause] or [Name]
+- NO generic lines like "you mean the world to me" or "words cannot express"
+- Output ONLY the spoken message - nothing else`;
+
+        const userPromptVoice = `Write a ${tone} voice message in ${languageName}.
+
+SENDER: ${senderName || 'Someone special'}
+RECIPIENT: ${recipientName || 'Friend'}
+RELATIONSHIP: ${relationship || 'friend'}
+OCCASION: ${occasion || 'special occasion'}
+SELECTED TONE: ${tone}
+TONE DELIVERY: ${voiceToneProfile.delivery}
+TONE WORDING: ${voiceToneProfile.wording}
+LENGTH: ${voiceLength.instruction}
+
+PERSONALITY TRAITS (weave ALL of these naturally into the message):
+${voiceTraits.length ? voiceTraits.map(trait => `- ${trait}`).join('\n') : '- kind, thoughtful, memorable'}
+
+MEMORIES & PERSONAL DETAILS (mention ALL of these specifically):
+${voiceMemories.length ? voiceMemories.map(memory => `- ${memory}`).join('\n') : '- A meaningful shared moment'}
+
+SENDER'S PERSONAL MESSAGE:
+${senderMessage || 'No custom message provided'}
+
+MANDATORY RULES:
+1. Start naturally, like beginning a real voice note, NOT with "Hey" or "Dear"
+2. Use ${recipientName || 'the recipient'}'s name once or twice, naturally mid-sentence
+3. All traits must be reflected, not listed, but felt in the writing
+4. All memories must appear specifically, no vague references
+5. Make the ${tone} tone clear through wording, rhythm, and emotional energy
+6. ${voiceToneProfile.must}
+7. End warmly but not with a cliche
+8. ${voiceLength.instruction}`;
+
+        textContent = await callOpenAIChat({
+          messages: [
+            { role: 'system', content: systemPromptVoice },
+            { role: 'user', content: userPromptVoice }
+          ],
+          maxTokens: voiceLength.maxTokens,
+          temperature: voiceToneProfile.temperature
+        });
+        prompt = null;
+      }
       break;
     case 'illustration':
       prompt = `Write a ${tone} descriptive text in ${languageName} for an artistic illustration dedicated to ${recipientName} for a ${occasion}, inspired by these memories: ${memories.join(', ')}. Include visual elements and emotional themes.`;
@@ -1030,10 +1393,16 @@ Rules:
     }
 
     if (giftType === 'voice') {
+        if (!String(textContent || '').trim()) {
+          throw new Error('OpenAI returned empty voice message content');
+        }
+
         const narration = await generateElevenLabsNarration({
           text: textContent,
           voiceStyle,
-          voiceStyleId
+          voiceStyleId,
+          voiceGender,
+          tone
         });
 
         console.log('ElevenLabs response received');
@@ -1044,6 +1413,8 @@ Rules:
           audioUrl: narration.audioUrl,
           voiceStyle: narration.voiceStyle,
           voiceStyleLabel: narration.voiceStyleLabel,
+          voiceGender: narration.voiceGender,
+          tone: narration.tone,
           settings: narration.settings
         };
       }
