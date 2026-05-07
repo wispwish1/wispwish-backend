@@ -394,46 +394,44 @@ const buildPremiumPoemInput = (gift, languageName) => {
   const tone = gift.tone || 'heartfelt';
 
   return {
-    systemPrompt: `You are a deeply emotional and creative writer.
+    systemPrompt: `You are an expert emotional gift writer who creates deeply personal, memorable poems and stories.
 
-Your task is to write a personalized poem or short story that feels natural, human, and sincere - not AI-generated.
+Your writing must feel human, warm, and specific - never generic or greeting-card-like.
 
-Use the information provided to create something unique and meaningful.
+Core rules:
+- Use the recipient's name naturally at least 2-3 times throughout the writing
+- Every personality trait provided MUST appear or be reflected in the writing
+- Every memory or detail provided MUST be woven into the writing - do not skip any
+- Match the tone precisely and keep it consistent from first line to last
+- Use concrete, specific imagery - no vague phrases like "you mean the world to me"
+- If writing a poem, maintain a consistent rhyme scheme (ABAB or AABB)
+- Do NOT use cliches: "words cannot express", "heart of gold", "shining light", "cup overflows"
+- Do NOT add a title, explanation, or intro - output only the poem or story
+- Do NOT mention AI`,
+    userPrompt: `Write a ${tone} ${gift.giftType || 'poem'} in ${languageName} using ALL of the details below.
 
-Guidelines:
-- Write in a warm, natural, and emotional tone
-- Avoid generic phrases and cliches
-- Make it feel like it was written by a real person
-- Include specific details from the memory and personality provided
-- Keep the structure clean and easy to read
-- Make the reader feel something: love, nostalgia, comfort, or joy
+RECIPIENT: ${gift.recipientName || 'Recipient'}
+RELATIONSHIP: ${gift.relationship || 'friend'}
+OCCASION: ${gift.occasion || 'special occasion'}
+TONE: ${tone} - ${TONE_STYLE_RULES[tone] || TONE_STYLE_RULES.heartfelt}
+LENGTH: ${lengthOption.label} - ${lengthOption.instruction}
 
-Style rules:
-- ${TONE_STYLE_RULES[tone] || TONE_STYLE_RULES.heartfelt}
+PERSONALITY TRAITS (use ALL of these in the writing):
+${personalityTraits.length ? personalityTraits.map(t => `- ${t}`).join('\n') : '- kind, thoughtful, memorable'}
 
-Important:
-- Do NOT mention AI
-- Do NOT explain anything
-- Do NOT add titles like "Here is your poem"
-- Just output the final poem or story
+MEMORIES & PERSONAL DETAILS (reference ALL of these specifically):
+${memories.length ? memories.map(m => `- ${m}`).join('\n') : '- A meaningful shared moment'}
 
-Structure:
-- Use line breaks if it is a poem
-- Keep it natural and not overly perfect`,
-    userPrompt: `Write the final gift in ${languageName}.
+SENDER'S MESSAGE TO INCLUDE:
+${gift.senderMessage || 'No custom message provided'}
 
-Recipient Name: ${gift.recipientName || 'Recipient'}
-Relationship: ${gift.relationship || 'friend'}
-Occasion: ${gift.occasion || 'special occasion'}
-Tone: ${tone}
-Memory: ${memories.length ? memories.join('; ') : 'A meaningful shared moment'}
-Personality Traits: ${personalityTraits.length ? personalityTraits.join(', ') : 'kind, memorable, loved'}
-Custom Message: ${gift.senderMessage || 'No custom message provided'}
-Length: ${lengthOption.label}
-
-${lengthOption.instruction}
-
-Make the writing specific to the recipient and the shared memory. Avoid filler, overused romantic lines, and generic greeting-card language.`,
+MANDATORY RULES:
+1. Use ${gift.recipientName || 'the recipient'}'s name at least 2-3 times - not just at the start or end
+2. Every trait listed above must appear or be clearly felt in the writing
+3. Every memory listed above must be specifically mentioned - do not drop any detail
+4. Keep the tone (${tone}) consistent throughout - no sudden mood shifts
+5. Zero cliches - every line must feel written specifically for THIS person
+6. Output ONLY the final poem or story - no title, no intro, no explanation`,
     lengthOption
   };
 };
@@ -459,20 +457,21 @@ const generatePremiumPoemText = async (gift, languageName) => {
       messages: [
         {
           role: 'system',
-          content: 'You refine emotional writing so it feels natural, personal, slightly imperfect, and human. Output only the final text.'
+          content: `You refine emotional writing to sound more natural and human.
+You MUST preserve: recipient name, all memories, all personality traits, tone, language, and occasion.
+Output only the final refined text - no title, no explanation.`
         },
         {
           role: 'user',
-          content: `Rewrite this to sound even more natural, slightly imperfect, and human.
-Avoid sounding too polished or robotic.
-Keep the original meaning, memory details, recipient, relationship, occasion, tone, and language.
-Do not add a title, explanation, or intro.
+          content: `Refine this writing to sound more natural and personal.
+Keep every specific detail, name, memory, and personality trait exactly as-is.
+Only improve the flow and emotional impact - do not add generic lines or remove any specific references.
 
 ${draft}`
         }
       ],
       maxTokens: lengthOption.maxTokens,
-      temperature: 0.64
+      temperature: 0.60
     });
 
     return rewritten || draft;
