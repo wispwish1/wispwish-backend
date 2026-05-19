@@ -7,8 +7,6 @@ import os from 'os';
 import { promises as fs } from 'fs';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import ffmpeg from '@ffmpeg-installer/ffmpeg';
-import ffprobe from '@ffprobe-installer/ffprobe';
 import apiTracker from './apiTracker.js';
 // import mongoose from 'mongoose';
 import VoiceStyle from '../models/VoiceStyle.js';
@@ -17,6 +15,22 @@ import PDFDocument from 'pdfkit';
 dotenv.config({ path: fileURLToPath(new URL('../.env', import.meta.url)) });
 dotenv.config();
 const execFileAsync = promisify(execFile);
+let ffmpegInstallerPromise = null;
+let ffprobeInstallerPromise = null;
+
+const getFfmpegInstaller = async () => {
+  if (!ffmpegInstallerPromise) {
+    ffmpegInstallerPromise = import('@ffmpeg-installer/ffmpeg').then(module => module.default || module);
+  }
+  return ffmpegInstallerPromise;
+};
+
+const getFfprobeInstaller = async () => {
+  if (!ffprobeInstallerPromise) {
+    ffprobeInstallerPromise = import('@ffprobe-installer/ffprobe').then(module => module.default || module);
+  }
+  return ffprobeInstallerPromise;
+};
 // SunoAPI.com API key
 
 // Validate environment variables
@@ -2012,6 +2026,7 @@ const getGeneratedVideoPublicUrl = (fileName, backendPublicUrl = '') => {
 
 const probeMediaDuration = async (filePath, fallbackDuration = 10) => {
   try {
+    const ffprobe = await getFfprobeInstaller();
     const { stdout } = await execFileAsync(ffprobe.path, [
       '-v', 'error',
       '-show_entries', 'format=duration',
@@ -2052,6 +2067,7 @@ const mergeNarrationIntoVideo = async ({ videoUrl, audioBase64, targetDuration =
 
     const videoDuration = await probeMediaDuration(inputVideoPath, targetDuration);
     const finalDuration = Math.max(1, Math.min(videoDuration || targetDuration, targetDuration || videoDuration || 10));
+    const ffmpeg = await getFfmpegInstaller();
 
     await execFileAsync(ffmpeg.path, [
       '-y',
