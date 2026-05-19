@@ -8,17 +8,7 @@
   ],
   "functions": {
     "api/*.js": {
-      "includeFiles": [
-        "server.js",
-        "config/**",
-        "gift-platform/**",
-        "knowledge/**",
-        "middleware/**",
-        "models/**",
-        "routes/**",
-        "services/**",
-        "utils/**"
-      ]
+      "includeFiles": "**/*"
     }
   }
 }
