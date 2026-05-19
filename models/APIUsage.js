@@ -15,7 +15,7 @@
 import mongoose from 'mongoose';
 
 const APIUsageSchema = new mongoose.Schema({
-  provider: { type: String, required: true, enum: ['openai', 'elevenlabs', 'runwayml'] },
+  provider: { type: String, required: true, enum: ['openai', 'elevenlabs', 'runwayml', 'kingai'] },
   requests: { type: Number, default: 0 },
   errors: { type: Number, default: 0 },
   characters: { type: Number, default: 0 }, // For APIs like ElevenLabs

@@ -130,6 +130,7 @@ const optionalAuth = async (req, res, next) => {
 // Generate gift route
 router.post('/generate', optionalAuth, checkSubscriptionLimit, async (req, res) => {
   try {
+    const backendPublicUrl = `${req.protocol}://${req.get('host')}`;
     console.log('Received /api/gift/generate request:', JSON.stringify(req.body, null, 2));
 
     const {
@@ -154,6 +155,11 @@ router.post('/generate', optionalAuth, checkSubscriptionLimit, async (req, res) 
       voiceGender,
       scheduledTimezone,
       scheduledOffsetMinutes,
+      videoDuration,
+      referenceImage,
+      videoImage,
+      photo,
+      imageUrl,
       language, // Add language parameter
       regenerateOptions = [],
       isRegenerate = false
@@ -233,6 +239,9 @@ router.post('/generate', optionalAuth, checkSubscriptionLimit, async (req, res) 
           personalityTraits,
           handwritingStyle,
           voiceStyle,
+          videoDuration,
+          referenceImage: referenceImage || videoImage || photo || imageUrl,
+          backendPublicUrl,
           regenerateOptions,
           isRegenerate
         })
@@ -265,6 +274,9 @@ router.post('/generate', optionalAuth, checkSubscriptionLimit, async (req, res) 
         personalityTraits,
         handwritingStyle,
         voiceStyle,
+        videoDuration,
+        referenceImage: referenceImage || videoImage || photo || imageUrl,
+        backendPublicUrl,
         length,
         poemLength,
         regenerateOptions,
@@ -329,6 +341,18 @@ router.post('/generate', optionalAuth, checkSubscriptionLimit, async (req, res) 
         videoUrl: generatedContent.videoUrl,
         script: generatedContent.script || generatedContent.text,
         description: generatedContent.description || `Video tribute content for ${recipientName}`,
+        duration: generatedContent.duration || null,
+        provider: generatedContent.provider || 'kingai',
+        model: generatedContent.model || null,
+        hasNativeAudio: generatedContent.hasNativeAudio || false,
+        audioMerged: generatedContent.audioMerged || false,
+        usedReferenceImage: generatedContent.usedReferenceImage || false,
+        referenceImageProvided: Boolean(referenceImage || videoImage || photo || imageUrl),
+        audioUrl: generatedContent.audioUrl || null,
+        audio: generatedContent.audio || null,
+        voiceStyleLabel: generatedContent.voiceStyleLabel || '',
+        voiceGender: generatedContent.voiceGender || '',
+        warning: generatedContent.warning || null,
         error: generatedContent.error || null,
         type: 'video'
       };

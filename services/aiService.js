@@ -1,11 +1,22 @@
-﻿import axios from 'axios';
+import axios from 'axios';
 import dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
+import { fileURLToPath } from 'url';
+import path from 'path';
+import os from 'os';
+import { promises as fs } from 'fs';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+import ffmpeg from '@ffmpeg-installer/ffmpeg';
+import ffprobe from '@ffprobe-installer/ffprobe';
 import apiTracker from './apiTracker.js';
 // import mongoose from 'mongoose';
 import VoiceStyle from '../models/VoiceStyle.js';
 import PDFDocument from 'pdfkit';
 
+dotenv.config({ path: fileURLToPath(new URL('../.env', import.meta.url)) });
 dotenv.config();
+const execFileAsync = promisify(execFile);
 // SunoAPI.com API key
 
 // Validate environment variables
@@ -1196,7 +1207,13 @@ const generateContent = async (gift) => {
     regenerateOptions = [],
     isRegenerate = false,
     voiceStyleId,
-    voiceGender = ''
+    voiceGender = '',
+    videoDuration,
+    referenceImage,
+    videoImage,
+    photo,
+    imageUrl,
+    backendPublicUrl
   } = gift;
 
   // Map language codes to full names for OpenAI
@@ -1356,7 +1373,47 @@ MANDATORY RULES:
       prompt = `Write a ${tone} descriptive text in ${languageName} for an artistic illustration dedicated to ${recipientName} for a ${occasion}, inspired by these memories: ${memories.join(', ')}. Include visual elements and emotional themes.`;
       break;
     case 'video':
-      prompt = `Write a ${tone} script in ${languageName} for a short video tribute to ${recipientName} for a ${occasion}, based on these memories: ${memories.join(', ')}. Include narration text and visual descriptions suitable for a 1-2 minute video.`;
+      {
+        const videoToneProfile = getVoiceTonePromptProfile(tone);
+        const videoMemories = normalizeTextList(memories);
+        const primaryMemory = videoMemories[0] || 'a meaningful shared moment';
+
+        textContent = await callOpenAIChat({
+          messages: [
+            {
+              role: 'system',
+              content: `You write concise 10-second AI video directions.
+
+Rules:
+- Output must match a single 10-second video clip, not a multi-scene montage
+- Use one location, one emotional beat, and one clear camera movement
+- No scene numbers, no title, no markdown, no long script
+- No text-on-screen instructions
+- Narration must be 18 words or fewer
+- Keep it realistic and easy for a video model to follow`
+            },
+            {
+              role: 'user',
+              content: `Create a 10-second ${tone} video plan in ${languageName}.
+
+Recipient: ${recipientName || 'Friend'}
+Relationship: ${relationship || 'friend'}
+Occasion: ${occasion || 'special occasion'}
+Tone delivery: ${videoToneProfile.delivery}
+Main memory: ${primaryMemory}
+Sender message: ${senderMessage || 'No custom message provided'}
+
+Return exactly this format:
+Visual: one sentence describing one realistic 10-second shot.
+Motion: one sentence describing subtle movement and camera motion.
+Narration: one short spoken line under 18 words.`
+            }
+          ],
+          maxTokens: 130,
+          temperature: Math.min(videoToneProfile.temperature, 0.72)
+        });
+        prompt = null;
+      }
       break;
     default:
       prompt = `Write a thoughtful message in ${languageName} for ${recipientName} for a ${occasion}.`;
@@ -1444,24 +1501,101 @@ MANDATORY RULES:
       if (giftType === 'video') {
         try {
           console.log('ðŸŽ¬ Generating video for:', { recipientName, tone, memories, occasion });
-          // Use only RunwayML for video generation
-          const { videoUrl } = await generateVideo({ promptText: textContent, recipientName, tone, memories, occasion });
-          console.log('ðŸŽ¬ Video generated successfully:', videoUrl);
+          // Use Kling AI for video generation. Old RunwayML implementation is kept commented below for reference.
+          const { videoUrl, duration, provider, model, hasNativeAudio, usedReferenceImage, warning } = await generateVideo({
+            promptText: textContent,
+            recipientName,
+            tone,
+            memories,
+            occasion,
+            relationship,
+            senderMessage,
+            videoDuration,
+            referenceImage: referenceImage || videoImage || photo || imageUrl
+          });
+          let finalVideoUrl = videoUrl;
+          let finalDuration = duration;
+          let narrationAudio = null;
+          let audioWarning = warning || '';
+          let audioMerged = false;
+
+          if (process.env.VIDEO_GENERATE_NARRATION_AUDIO !== 'false') {
+            try {
+              const narrationText = buildVideoNarrationText({
+                recipientName,
+                occasion,
+                tone,
+                memories,
+                senderMessage,
+                relationship,
+                duration
+              });
+
+              narrationAudio = await generateElevenLabsNarration({
+                text: narrationText,
+                voiceStyle,
+                voiceStyleId,
+                voiceGender,
+                tone
+              });
+
+              if (process.env.VIDEO_MERGE_NARRATION_AUDIO !== 'false') {
+                try {
+                  const mergedVideo = await mergeNarrationIntoVideo({
+                    videoUrl,
+                    audioBase64: narrationAudio.audio,
+                    targetDuration: duration,
+                    backendPublicUrl
+                  });
+
+                  if (mergedVideo?.videoUrl) {
+                    finalVideoUrl = mergedVideo.videoUrl;
+                    finalDuration = mergedVideo.duration || duration;
+                    audioMerged = true;
+                    narrationAudio = null;
+                  }
+                } catch (mergeError) {
+                  console.warn('Video/audio mux failed, returning separate narration audio:', mergeError.message);
+                  audioWarning = [audioWarning, 'Narration was generated separately because it could not be embedded into the video on this server.'].filter(Boolean).join(' ');
+                }
+              }
+            } catch (audioError) {
+              console.warn('Video narration audio fallback failed:', audioError.message);
+              audioWarning = [audioWarning, 'Video was created, but narration audio could not be generated.'].filter(Boolean).join(' ');
+            }
+          }
+
+          console.log('ðŸŽ¬ Video generated successfully:', finalVideoUrl);
           return {
             text: textContent,
             type: 'video',
             script: textContent,
             description: `Video tribute content for ${recipientName}`,
-            videoUrl
+            videoUrl: finalVideoUrl,
+            duration: finalDuration,
+            provider,
+            model,
+            hasNativeAudio,
+            usedReferenceImage,
+            audioMerged,
+            warning: audioWarning || null,
+            audioUrl: narrationAudio?.audioUrl || null,
+            audio: narrationAudio?.audio || null,
+            voiceStyleLabel: narrationAudio?.voiceStyleLabel || '',
+            voiceGender: narrationAudio?.voiceGender || ''
           };
         } catch (videoError) {
           console.error('ðŸŽ¬ Video generation failed:', videoError.message);
+          const videoErrorMessage = videoError.message.includes('still processing')
+            ? videoError.message
+            : `Video generation failed: ${videoError.message}. Please check your Kling AI API configuration.`;
+
           return {
             text: textContent,
             type: 'video',
             script: textContent,
             description: `Video tribute content for ${recipientName}`,
-            error: `Video generation failed: ${videoError.message}. Please check your RunwayML API configuration.`
+            error: videoErrorMessage
           };
         }
       }
@@ -1555,6 +1689,7 @@ MANDATORY RULES:
 // Generate WishKnot animated SVG and message
 
 
+/* OLD RunwayML Video Generation (commented out)
 const generateVideo = async ({
   promptText,
   recipientName,
@@ -1696,6 +1831,639 @@ const generateVideo = async ({
     }
 
     throw new Error(`Video generation failed: ${error.message}`);
+  }
+};*/
+
+const getCleanEnv = (...names) => {
+  for (const name of names) {
+    const value = process.env[name];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim().replace(/^['"]|['"]$/g, '');
+    }
+  }
+  return '';
+};
+
+const buildVideoNarrationText = ({
+  recipientName,
+  occasion,
+  tone,
+  memories = [],
+  senderMessage = '',
+  relationship = '',
+  duration = 10
+}) => {
+  const cleanMemories = Array.isArray(memories)
+    ? memories.map(sanitizeVideoText).filter(Boolean).slice(0, 3)
+    : [];
+
+  const recipient = sanitizeVideoText(recipientName) || 'you';
+  const event = sanitizeVideoText(occasion) || 'special day';
+  const message = sanitizeVideoText(senderMessage);
+  const mainMemory = cleanMemories[0] || message;
+  const maxWords = duration <= 5 ? 13 : 24;
+
+  const text = [
+    `For ${recipient}, this ${event} tribute holds one warm memory${mainMemory ? `: ${mainMemory}` : ''}.`,
+    `With love and ${sanitizeVideoText(tone) || 'heartfelt'} gratitude, may this moment stay close to your heart.`
+  ].join(' ');
+
+  return text.split(/\s+/).slice(0, maxWords).join(' ');
+};
+
+const KLING_CONFIGURED_VIDEO_MODEL = getCleanEnv('KING_AI_MODEL_NAME', 'KLING_AI_MODEL_NAME', 'KLINGAI_MODEL_NAME');
+const getKlingBaseUrls = () => {
+  const configuredBaseUrl = getCleanEnv('KING_AI_BASE_URL', 'KLING_AI_BASE_URL', 'KLINGAI_BASE_URL');
+  const baseUrls = configuredBaseUrl
+    ? [configuredBaseUrl]
+    : ['https://api-singapore.klingai.com', 'https://api.klingai.com'];
+
+  return [...new Set(baseUrls.map((url) => url.replace(/\/+$/, '')))];
+};
+
+const getKlingTextToVideoEndpoint = (baseUrl) => `${baseUrl}/v1/videos/text2video`;
+const getKlingImageToVideoEndpoint = (baseUrl) => `${baseUrl}/v1/videos/image2video`;
+const KLING_ALLOWED_DURATIONS = [5, 10];
+const KLING_SUCCESS_STATUSES = ['succeed', 'succeeded', 'success', 'completed', 'complete', 'finished', 'done'];
+const KLING_FAILURE_STATUSES = ['failed', 'failure', 'error', 'cancelled', 'canceled', 'timeout', 'timedout'];
+const KLING_NEGATIVE_PROMPT = 'static, frozen, still image, motionless, stiff pose, mannequin-like, text, captions, subtitles, watermark, logo, low quality, blurry, flicker, jitter, distorted face, warped face, deformed hands, extra fingers, bad anatomy, scary, creepy, cartoon, anime, plastic skin, overexposed, harsh cuts, jump cuts, scene transitions, slideshow';
+
+const resolveKlingModelName = (soundEnabled) => {
+  if (KLING_CONFIGURED_VIDEO_MODEL) return KLING_CONFIGURED_VIDEO_MODEL;
+  return soundEnabled ? 'kling-v2-6' : '';
+};
+
+const sanitizeVideoText = (value = '') =>
+  String(value)
+    .replace(/\*\*|__|\*|#/g, '')
+    .replace(/\[(.*?)\]|\((.*?)\)/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const normalizeKlingDuration = (requestedDuration) => {
+  const duration = Number.parseInt(requestedDuration, 10);
+  if (!Number.isFinite(duration)) return KLING_ALLOWED_DURATIONS[1];
+  return duration <= KLING_ALLOWED_DURATIONS[0] ? KLING_ALLOWED_DURATIONS[0] : KLING_ALLOWED_DURATIONS[1];
+};
+
+const extractKlingVideoUrl = (payload) => {
+  const data = payload?.data;
+  const nestedData = data?.data;
+  return (
+    payload?.video_url ||
+    payload?.videoUrl ||
+    payload?.url ||
+    payload?.video?.url ||
+    payload?.output?.video_url ||
+    payload?.output?.url ||
+    payload?.task_result?.videos?.[0]?.url ||
+    payload?.task_result?.videos?.[0]?.url_public ||
+    payload?.task_result?.videos?.[0]?.video_url_download ||
+    data?.video_url ||
+    data?.videoUrl ||
+    data?.url ||
+    data?.output?.video_url ||
+    data?.output?.url ||
+    data?.video?.url ||
+    data?.videos?.[0]?.url ||
+    data?.result?.videos?.[0]?.url ||
+    data?.task_result?.videos?.[0]?.url ||
+    data?.task_result?.videos?.[0]?.url_public ||
+    data?.task_result?.videos?.[0]?.video_url_download ||
+    nestedData?.video_url ||
+    nestedData?.videoUrl ||
+    nestedData?.url ||
+    nestedData?.task_result?.videos?.[0]?.url ||
+    nestedData?.task_result?.videos?.[0]?.url_public ||
+    nestedData?.task_result?.videos?.[0]?.video_url_download ||
+    data?.[0]?.url ||
+    data?.[0]?.video_url ||
+    data?.[0]?.video?.url ||
+    null
+  );
+};
+
+const extractKlingTaskId = (payload) =>
+  payload?.id ||
+  payload?.generation_id ||
+  payload?.task_id ||
+  payload?.request_id ||
+  payload?.data?.id ||
+  payload?.data?.generation_id ||
+  payload?.data?.task_id ||
+  payload?.data?.request_id ||
+  null;
+
+const getKlingStatus = (payload) => (
+  payload?.status ||
+  payload?.state ||
+  payload?.task_status ||
+  payload?.status_name ||
+  payload?.data?.status ||
+  payload?.data?.state ||
+  payload?.data?.task_status ||
+  payload?.data?.status_name ||
+  payload?.data?.data?.status ||
+  payload?.data?.data?.state ||
+  payload?.data?.data?.task_status ||
+  payload?.data?.data?.status_name ||
+  ''
+).toString().toLowerCase();
+
+const getKlingFailureMessage = (payload) =>
+  payload?.error?.message ||
+  payload?.message ||
+  payload?.task_status_msg ||
+  payload?.data?.error?.message ||
+  payload?.data?.message ||
+  payload?.data?.task_status_msg ||
+  payload?.data?.data?.error?.message ||
+  payload?.data?.data?.message ||
+  payload?.data?.data?.task_status_msg ||
+  "Kling AI video generation failed.";
+
+const normalizeKlingImageInput = (image) => {
+  const cleanImage = sanitizeVideoText(image);
+  if (!cleanImage) return '';
+  const dataUrlMatch = cleanImage.match(/^data:image\/[a-zA-Z0-9.+-]+;base64,(.+)$/);
+  return dataUrlMatch ? dataUrlMatch[1] : cleanImage;
+};
+
+const shouldRetryKlingWithoutSound = (error) => {
+  if (error.response?.status !== 400) return false;
+  const responseText = JSON.stringify(error.response?.data || '').toLowerCase();
+  return responseText.includes('sound') || responseText.includes('audio') || responseText.includes('model');
+};
+
+const shouldTryNextKlingHost = (error) => {
+  if (error.response?.status === 401) return true;
+  return ['ENOTFOUND', 'EAI_AGAIN', 'ECONNRESET', 'ECONNABORTED', 'ETIMEDOUT'].includes(error.code);
+};
+
+const getGeneratedVideoPublicUrl = (fileName, backendPublicUrl = '') => {
+  const baseUrl = (
+    backendPublicUrl ||
+    process.env.BACKEND_PUBLIC_URL ||
+    process.env.API_PUBLIC_URL ||
+    `http://localhost:${process.env.PORT || 5001}`
+  ).replace(/\/+$/, '');
+  return `${baseUrl}/generated/videos/${fileName}`;
+};
+
+const probeMediaDuration = async (filePath, fallbackDuration = 10) => {
+  try {
+    const { stdout } = await execFileAsync(ffprobe.path, [
+      '-v', 'error',
+      '-show_entries', 'format=duration',
+      '-of', 'default=noprint_wrappers=1:nokey=1',
+      filePath
+    ]);
+    const duration = Number.parseFloat(stdout);
+    return Number.isFinite(duration) && duration > 0 ? duration : fallbackDuration;
+  } catch (error) {
+    console.warn('Unable to probe media duration, using fallback:', error.message);
+    return fallbackDuration;
+  }
+};
+
+const mergeNarrationIntoVideo = async ({ videoUrl, audioBase64, targetDuration = 10, backendPublicUrl = '' }) => {
+  if (!videoUrl || !audioBase64) {
+    return null;
+  }
+
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wispwish-video-'));
+  // Save merged videos outside the repo to avoid Live Server refreshing the form mid-generation.
+  const outputDir = path.join(os.tmpdir(), 'wispwish-generated', 'videos');
+  await fs.mkdir(outputDir, { recursive: true });
+
+  const inputVideoPath = path.join(tempDir, 'input.mp4');
+  const inputAudioPath = path.join(tempDir, 'narration.mp3');
+  const outputFileName = `video-${Date.now()}-${Math.random().toString(36).slice(2, 10)}.mp4`;
+  const outputPath = path.join(outputDir, outputFileName);
+
+  try {
+    const videoResponse = await axios.get(videoUrl, {
+      responseType: 'arraybuffer',
+      timeout: 120000
+    });
+
+    await fs.writeFile(inputVideoPath, Buffer.from(videoResponse.data));
+    await fs.writeFile(inputAudioPath, Buffer.from(audioBase64, 'base64'));
+
+    const videoDuration = await probeMediaDuration(inputVideoPath, targetDuration);
+    const finalDuration = Math.max(1, Math.min(videoDuration || targetDuration, targetDuration || videoDuration || 10));
+
+    await execFileAsync(ffmpeg.path, [
+      '-y',
+      '-i', inputVideoPath,
+      '-i', inputAudioPath,
+      '-map', '0:v:0',
+      '-map', '1:a:0',
+      '-c:v', 'copy',
+      '-c:a', 'aac',
+      '-b:a', '160k',
+      '-af', 'apad',
+      '-t', String(finalDuration.toFixed(2)),
+      '-shortest',
+      '-movflags', '+faststart',
+      outputPath
+    ], { timeout: 180000 });
+
+    return {
+      videoUrl: getGeneratedVideoPublicUrl(outputFileName, backendPublicUrl),
+      duration: finalDuration
+    };
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+  }
+};
+
+const createKlingJwtToken = () => {
+  const accessKey = getCleanEnv('KING_AI_ACCESS_KEY', 'KLING_AI_ACCESS_KEY', 'KLINGAI_ACCESS_KEY');
+  const secretKey = getCleanEnv('KING_AI_SECRET_KEY', 'KLING_AI_SECRET_KEY', 'KLINGAI_SECRET_KEY');
+
+  if (!accessKey || !secretKey) {
+    throw new Error("Kling AI credentials not configured. Please set KING_AI_ACCESS_KEY and KING_AI_SECRET_KEY in environment variables.");
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  return jwt.sign(
+    {
+      iss: accessKey,
+      exp: now + 1800,
+      nbf: now - 5
+    },
+    secretKey,
+    {
+      algorithm: 'HS256',
+      noTimestamp: true,
+      header: {
+        alg: 'HS256',
+        typ: 'JWT'
+      }
+    }
+  );
+};
+
+// Use OpenAI to enhance short/simple video prompts into rich cinematic descriptions
+const enhanceVideoPromptWithAI = async ({
+  promptText,
+  recipientName,
+  tone,
+  memories,
+  occasion,
+  relationship,
+  senderMessage
+}) => {
+  const cleanPrompt = sanitizeVideoText(promptText);
+  const cleanMemories = Array.isArray(memories)
+    ? memories.map(sanitizeVideoText).filter(Boolean).slice(0, 4)
+    : [];
+
+  // If prompt is already very detailed (more than 40 words), skip enhancement
+  const wordCount = cleanPrompt.split(/\s+/).filter(Boolean).length;
+  if (wordCount > 40) {
+    console.log('🎬 Prompt already detailed enough, skipping AI enhancement');
+    return cleanPrompt;
+  }
+
+  try {
+    const enhanced = await callOpenAIChat({
+      messages: [
+        {
+          role: 'system',
+          content: `You are a cinematic video prompt engineer for Kling AI video generation. Transform short, simple user inputs into vivid, motion-rich video scene descriptions that produce beautiful, dynamic videos.
+
+CRITICAL RULES:
+- Output ONLY the scene description, nothing else - no title, no intro, no quotes
+- Maximum 100 words
+- MUST include specific CONTINUOUS physical movements: walking toward camera, turning head slowly, laughing genuinely, reaching out hand, brushing hair behind ear, looking up with a warm smile, tilting head, leaning forward, gentle swaying, wrapping arms in a hug
+- MUST include ONE camera movement: slow dolly in, gentle orbit around subject, smooth tracking shot, slow push-in, or subtle crane up
+- MUST include atmospheric details: golden hour sunlight streaming through, warm bokeh lights, floating dust particles, swaying leaves, flickering candles, gentle breeze moving hair or fabric
+- MUST describe the environment: lush garden path, cozy warmly-lit room, sunset beach with gentle waves, rooftop at golden hour, flower-filled meadow, tree-lined pathway with dappled sunlight
+- Focus on ONE single continuous fluid scene - absolutely NO montage, NO scene cuts, NO transitions
+- Subject must be ACTIVELY doing something throughout - never just standing still or posing
+- Describe emotions through ACTIONS not adjectives (tears of joy rolling down, eyes lighting up, spontaneous laughter)
+- Never mention names, text overlays, subtitles, or watermarks
+- Make it feel like a premium cinematic short film with life and movement`
+        },
+        {
+          role: 'user',
+          content: `Transform this into a vivid, motion-rich cinematic video scene:
+
+User's idea: ${cleanPrompt || 'a heartfelt emotional tribute video'}
+Occasion: ${occasion || 'special occasion'}
+Relationship: ${relationship || 'close friend'}
+Tone/Mood: ${tone || 'heartfelt'}
+${cleanMemories.length ? `Memories to inspire the visual mood: ${cleanMemories.join('; ')}` : ''}
+${senderMessage ? `Sender's feeling: ${sanitizeVideoText(senderMessage).slice(0, 120)}` : ''}
+
+Create a single continuous cinematic scene full of natural motion and emotional depth. The subject should be actively moving and emoting throughout.`
+        }
+      ],
+      maxTokens: 200,
+      temperature: 0.88
+    });
+
+    if (enhanced && enhanced.split(/\s+/).length > 15) {
+      console.log('🎬 AI-enhanced video prompt:', enhanced.slice(0, 250));
+      return enhanced;
+    }
+    console.warn('🎬 AI enhancement returned short result, using original prompt');
+    return cleanPrompt;
+  } catch (error) {
+    console.warn('🎬 Video prompt AI enhancement failed, using original:', error.message);
+    return cleanPrompt;
+  }
+};
+
+const buildKlingVideoPrompt = ({
+  promptText,
+  recipientName,
+  tone,
+  memories,
+  occasion,
+  relationship,
+  senderMessage,
+  hasReferenceImage = false,
+  soundEnabled = true
+}) => {
+  const cleanMemories = Array.isArray(memories)
+    ? memories.map(sanitizeVideoText).filter(Boolean).slice(0, 4)
+    : [];
+
+  const cleanPromptText = sanitizeVideoText(promptText);
+  const mainMemory = cleanMemories[0] || sanitizeVideoText(senderMessage) || sanitizeVideoText(promptText).slice(0, 220);
+  const storyParts = [
+    relationship ? `Relationship context: ${sanitizeVideoText(relationship)}.` : '',
+    occasion ? `Occasion: ${sanitizeVideoText(occasion)}.` : '',
+    tone ? `Emotional mood: ${sanitizeVideoText(tone)}, warm, genuine, alive.` : '',
+    cleanPromptText ? `Scene description: ${cleanPromptText}.` : '',
+    mainMemory && mainMemory !== cleanPromptText ? `Emotional core: ${mainMemory}.` : '',
+    cleanMemories.length > 1 ? `Atmospheric inspiration: ${cleanMemories.slice(1).join('; ')}.` : ''
+  ].filter(Boolean);
+
+  const prompt = [
+    hasReferenceImage
+      ? 'Image-to-video. Preserve the uploaded photo identity exactly. Keep the same face, age, clothing, hairstyle, and body proportions. Bring the photo to life with natural realistic motion.'
+      : 'Cinematic realistic single-shot tribute video. One continuous take, one believable human subject, one clear emotional moment unfolding naturally.',
+    storyParts.join(' '),
+    hasReferenceImage
+      ? 'Motion: the subject slowly turns their head toward camera with a warm genuine smile forming, eyes gently blinking, subtle breathing visible in chest movement, slight shoulder shift, a small natural hand gesture, hair or clothing gently moving as if a soft breeze passes. Background has gentle ambient motion like swaying leaves or floating light particles. Slow smooth dolly-in camera movement.'
+      : 'Subject motion: the person walks slowly forward or turns toward camera, genuine smile spreading across their face, natural laugh or emotional expression, hands moving expressively, body swaying gently, hair and clothing shifting with natural movement. Environment motion: leaves rustling, light particles floating, curtains or fabric gently moving, bokeh lights softly shifting. Camera: slow cinematic dolly-in or gentle orbit, smooth and steady.',
+    'Lighting: warm golden-hour sunlight with soft backlight creating rim lighting on subject, shallow depth of field with beautiful creamy bokeh background, natural skin tones with cinematic color grading.',
+    soundEnabled
+      ? 'Audio: soft emotional piano melody with gentle ambient room tone, birds chirping or soft wind, no harsh sounds, no robotic narration.'
+      : '',
+    'Technical: photorealistic quality, 24fps cinematic motion, stable consistent face throughout, natural skin texture, no freeze frames, no still images, continuous fluid motion from start to end, no text on screen, no scene changes or cuts.'
+  ].join(' ');
+
+  return prompt.replace(/\s+/g, ' ').trim().slice(0, 2500);
+};
+
+// King AI / Kling AI official text-to-video generation.
+const generateVideo = async ({
+  promptText,
+  recipientName,
+  tone = "heartfelt",
+  memories = [],
+  occasion = "special occasion",
+  relationship = "",
+  senderMessage = "",
+  videoDuration,
+  referenceImage
+}) => {
+  console.log("🎬 Starting video generation with Kling AI (2.5 Turbo)...");
+
+  const duration = normalizeKlingDuration(videoDuration);
+  const imageInput = normalizeKlingImageInput(referenceImage);
+  const soundEnabled = process.env.KLING_VIDEO_ENABLE_SOUND !== 'false';
+  const modelName = resolveKlingModelName(soundEnabled);
+
+  // Step 1: Enhance the prompt with AI if it's short/simple
+  const enhancedPromptText = await enhanceVideoPromptWithAI({
+    promptText,
+    recipientName,
+    tone,
+    memories,
+    occasion,
+    relationship,
+    senderMessage
+  });
+
+  // Step 2: Build the final Kling prompt with enhanced text + motion directives
+  const videoPrompt = buildKlingVideoPrompt({
+    promptText: enhancedPromptText,
+    recipientName,
+    tone,
+    memories,
+    occasion,
+    relationship,
+    senderMessage,
+    hasReferenceImage: Boolean(imageInput),
+    soundEnabled
+  });
+
+  const body = {
+    prompt: videoPrompt,
+    negative_prompt: KLING_NEGATIVE_PROMPT,
+    cfg_scale: 0.5,
+    aspect_ratio: "16:9",
+    duration,
+    mode: "pro"
+  };
+
+  // Official Kling API uses its current text-to-video model by default.
+  // Send model_name only when explicitly configured in env to avoid invalid model errors.
+  if (modelName) {
+    body.model_name = modelName;
+  }
+
+  if (soundEnabled) {
+    body.sound = "on";
+  }
+
+  if (imageInput) {
+    body.image = imageInput;
+  }
+
+  const createEndpointFactory = imageInput ? getKlingImageToVideoEndpoint : getKlingTextToVideoEndpoint;
+
+  console.log("ðŸŽ¬ Kling request body:", {
+    ...body,
+    image: imageInput ? '[reference image provided]' : undefined,
+    prompt: `${videoPrompt.slice(0, 220)}...`
+  });
+
+  try {
+    let response = null;
+    let activeBaseUrl = null;
+    let lastAuthError = null;
+    let activeBody = body;
+    let nativeAudioWarning = '';
+
+    // Kling official keys can be bound to different API regions, so try the official global host
+    // and then the Singapore host before returning an auth error.
+    for (const baseUrl of getKlingBaseUrls()) {
+      try {
+        const authToken = createKlingJwtToken();
+        response = await axios.post(
+          createEndpointFactory(baseUrl),
+          activeBody,
+          {
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+              "Content-Type": "application/json"
+            },
+            timeout: 60000
+          }
+        );
+        activeBaseUrl = baseUrl;
+        break;
+      } catch (requestError) {
+        lastAuthError = requestError;
+        console.error("ðŸŽ¬ Kling create request failed on host:", {
+          baseUrl,
+          status: requestError.response?.status,
+          data: requestError.response?.data
+        });
+
+        if (activeBody.sound && shouldRetryKlingWithoutSound(requestError)) {
+          activeBody = { ...activeBody };
+          delete activeBody.sound;
+          if (!KLING_CONFIGURED_VIDEO_MODEL) {
+            delete activeBody.model_name;
+          }
+          nativeAudioWarning = `Kling native sound was requested but this API/model rejected it: ${getKlingFailureMessage(requestError.response?.data)} Video was regenerated without embedded sound.`;
+          console.warn("ðŸŽ¬ Kling sound/model option rejected; retrying once without native sound.");
+          try {
+            const authToken = createKlingJwtToken();
+            response = await axios.post(
+              createEndpointFactory(baseUrl),
+              activeBody,
+              {
+                headers: {
+                  Authorization: `Bearer ${authToken}`,
+                  "Content-Type": "application/json"
+                },
+                timeout: 60000
+              }
+            );
+            activeBaseUrl = baseUrl;
+            break;
+          } catch (retryError) {
+            lastAuthError = retryError;
+            console.error("ðŸŽ¬ Kling fallback create request failed:", {
+              baseUrl,
+              status: retryError.response?.status,
+              data: retryError.response?.data
+            });
+            requestError = retryError;
+          }
+        }
+
+        if (!shouldTryNextKlingHost(requestError)) {
+          throw requestError;
+        }
+      }
+    }
+
+    if (!response || !activeBaseUrl) {
+      throw lastAuthError || new Error("Kling AI request failed before task creation.");
+    }
+
+    await apiTracker.trackAPIUsage('kingai', 1, 0);
+    console.log("ðŸŽ¬ Kling create response:", response.data);
+
+    const immediateUrl = extractKlingVideoUrl(response.data);
+    if (immediateUrl) {
+      console.log("ðŸŽ¬ âœ… Kling video ready:", immediateUrl);
+      return {
+        videoUrl: immediateUrl,
+        duration,
+        provider: 'kingai',
+        model: activeBody.model_name || 'kling-default',
+        hasNativeAudio: Boolean(activeBody.sound),
+        usedReferenceImage: Boolean(imageInput),
+        warning: nativeAudioWarning
+      };
+    }
+
+    const taskId = extractKlingTaskId(response.data);
+    if (!taskId) {
+      throw new Error("Kling AI did not return a video URL or task ID.");
+    }
+
+    // Kling video generation is async. Poll for a final URL; 10s generations can take several minutes.
+    const configuredMaxAttempts = Number.parseInt(process.env.KLING_VIDEO_MAX_POLL_ATTEMPTS || '90', 10);
+    const configuredInitialDelay = Number.parseInt(process.env.KLING_VIDEO_INITIAL_POLL_DELAY_MS || '10000', 10);
+    const maxAttempts = Number.isFinite(configuredMaxAttempts) && configuredMaxAttempts > 0 ? configuredMaxAttempts : 90;
+    let delay = Number.isFinite(configuredInitialDelay) && configuredInitialDelay > 0 ? configuredInitialDelay : 10000;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+
+      const pollResponse = await axios.get(`${createEndpointFactory(activeBaseUrl)}/${taskId}`, {
+        headers: {
+          Authorization: `Bearer ${createKlingJwtToken()}`
+        },
+        timeout: 30000
+      });
+
+      const status = getKlingStatus(pollResponse.data);
+      const videoUrl = extractKlingVideoUrl(pollResponse.data);
+      console.log(`ðŸŽ¬ Kling status [${attempt}/${maxAttempts}] task ${taskId}:`, {
+        status: status || 'unknown',
+        hasVideoUrl: Boolean(videoUrl),
+        requestId: pollResponse.data?.request_id
+      });
+
+      if (videoUrl && (!status || KLING_SUCCESS_STATUSES.includes(status) || !KLING_FAILURE_STATUSES.includes(status))) {
+        console.log("ðŸŽ¬ âœ… Kling video generated successfully:", videoUrl);
+        return {
+          videoUrl,
+          duration,
+          provider: 'kingai',
+          model: activeBody.model_name || 'kling-default',
+          hasNativeAudio: Boolean(activeBody.sound),
+          usedReferenceImage: Boolean(imageInput),
+          warning: nativeAudioWarning
+        };
+      }
+
+      if (KLING_FAILURE_STATUSES.includes(status)) {
+        throw new Error(getKlingFailureMessage(pollResponse.data));
+      }
+
+      delay = Math.min(Math.round(delay * 1.12), 20000);
+    }
+
+    throw new Error(`Kling AI video generation is still processing after ${maxAttempts} checks. Task ID: ${taskId}. Please try regenerating in a few minutes.`);
+
+  } catch (error) {
+    console.error("ðŸŽ¬ Video generation error with Kling AI:", error.response?.data || error.message);
+    await apiTracker.trackAPIUsage('kingai', 1, 0, null, true);
+
+    if (error.response?.status === 400) {
+      throw new Error(`Invalid Kling AI request: ${JSON.stringify(error.response.data)}`);
+    }
+    if (error.response?.status === 401) {
+      throw new Error("Kling AI credentials are invalid or unauthorized. Please check KING_AI_ACCESS_KEY and KING_AI_SECRET_KEY.");
+    }
+    if (error.response?.status === 403) {
+      throw new Error("Kling AI access denied. Check your plan or permissions.");
+    }
+    if (error.response?.status === 429) {
+      throw new Error("Kling AI rate limit exceeded. Try again later.");
+    }
+    if (error.response?.status >= 500) {
+      throw new Error("Kling AI internal error. Please retry.");
+    }
+    if (['ENOTFOUND', 'EAI_AGAIN', 'ECONNRESET', 'ECONNABORTED', 'ETIMEDOUT'].includes(error.code)) {
+      throw new Error(`Kling AI network connection failed (${error.code}). Please retry.`);
+    }
+
+    throw new Error(`Video generation failed with Kling AI: ${error.message}`);
   }
 };
 
@@ -2076,6 +2844,7 @@ const createUntieAnimation = (knotStyle) => {
   return `data:image/svg+xml;utf8,${untieSvg}`;
 };
 
+/* OLD RunwayML Image Generation (commented out)
 const generateImages = async (gift) => {
   console.log('generateImages called with gift:', gift);
 
@@ -2096,7 +2865,7 @@ const generateImages = async (gift) => {
     'ar': 'Arabic',
     'ru': 'Russian'
   };
-  
+
   const languageName = languageMap[language] || 'English';
 
   if (!giftType || !recipientName) {
@@ -2105,7 +2874,7 @@ const generateImages = async (gift) => {
   }
 
   const memoriesString = memories.length > 0 ? memories.join(', ') : 'a special moment';
-  
+
   // Create two different prompts for variety with language specification
   const basePrompt = `A visual representation in ${languageName} of a ${tone} scene for ${recipientName} at a ${occasion}, inspired by: ${memoriesString}`;
   const prompts = [
@@ -2136,7 +2905,7 @@ const generateImages = async (gift) => {
       );
 
       console.log(`Runway ML response ${index + 1}:`, response.data);
-      
+
       // Track RunwayML usage
       await apiTracker.trackAPIUsage('runwayml', 1, 0);
 
@@ -2152,7 +2921,7 @@ const generateImages = async (gift) => {
 
       while (attempt < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, delay));
-        
+
         try {
           const taskResponse = await axios.get(
             `https://api.dev.runwayml.com/v1/tasks/${taskId}`,
@@ -2193,15 +2962,106 @@ const generateImages = async (gift) => {
     // Wait for both images to complete
     const images = await Promise.all(imagePromises);
     console.log('Generated images:', images);
-    
+
     return images;
   } catch (error) {
     console.error('Runway ML API error:', error.response?.data || error.message);
-    
+
     // Track error
     await apiTracker.trackAPIUsage('runwayml', 1, 0, null, true);
-    
+
     throw new Error('Failed to generate images: ' + (error.response?.data?.error || error.message));
+  }
+};*/
+
+// King AI (AIMLAPI) Image Generation
+const generateImages = async (gift) => {
+  console.log('generateImages called with gift (King AI):', gift);
+
+  const { giftType, recipientName = 'Someone', tone = 'heartfelt', memories = [], occasion = 'special occasion', language = 'en' } = gift || {};
+
+  // Map language codes to full names
+  const languageMap = {
+    'en': 'English',
+    'es': 'Spanish',
+    'fr': 'French',
+    'de': 'German',
+    'it': 'Italian',
+    'pt': 'Portuguese',
+    'zh': 'Chinese',
+    'ja': 'Japanese',
+    'ko': 'Korean',
+    'hi': 'Hindi',
+    'ar': 'Arabic',
+    'ru': 'Russian'
+  };
+
+  const languageName = languageMap[language] || 'English';
+
+  if (!giftType || !recipientName) {
+    console.error('generateImages: Missing required fields', { giftType, recipientName });
+    throw new Error('giftType and recipientName are required');
+  }
+
+  const memoriesString = memories.length > 0 ? memories.join(', ') : 'a special moment';
+
+  // Create two different prompts for variety with language specification
+  const basePrompt = `A visual representation in ${languageName} of a ${tone} scene for ${recipientName} at a ${occasion}, inspired by: ${memoriesString}`;
+  const prompts = [
+    `${basePrompt}. Artistic style, warm colors.`,
+    `${basePrompt}. Different artistic interpretation, vibrant colors.`
+  ];
+
+  console.log('Generated prompts for King AI:', prompts);
+
+  try {
+    // Generate images with King AI (AIMLAPI)
+    const imagePromises = prompts.map(async (prompt, index) => {
+      const response = await axios.post(
+        'https://api.aimlapi.com/v1/images/generations', // King AI Image Generation endpoint
+        {
+          prompt: prompt,
+          model: 'dall-e-3', // Example model, adjust if King AI uses a different one
+          n: 1, // Number of images to generate
+          size: '1024x1024' // Image size, adjust if King AI uses different options
+        },
+        {
+          headers: {
+            // Use the King AI Access Key for authorization
+            Authorization: `Bearer ${process.env.KING_AI_ACCESS_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 60000 // Increased timeout for image generation
+        }
+      );
+
+      console.log(`King AI response ${index + 1}:`, response.data);
+
+      // Track King AI usage
+      await apiTracker.trackAPIUsage('kingai', 1, 0);
+
+      const imageUrl = response.data?.data?.[0]?.url;
+      if (!imageUrl) {
+        throw new Error(`No image URL received from King AI for image ${index + 1}`);
+      }
+      return {
+        _id: Math.random().toString(36).substring(2, 15),
+        url: imageUrl,
+      };
+    });
+
+    // Wait for all images to complete
+    const images = await Promise.all(imagePromises);
+    console.log('Generated images with King AI:', images);
+
+    return images;
+  } catch (error) {
+    console.error('King AI Image Generation API error:', error.response?.data || error.message);
+
+    // Track error
+    await apiTracker.trackAPIUsage('kingai', 1, 0, null, true);
+
+    throw new Error('Failed to generate images with King AI: ' + (error.response?.data?.error || error.message));
   }
 };
 

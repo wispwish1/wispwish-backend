@@ -9,7 +9,8 @@ const trackAPIUsage = async (provider, requestCount = 1, characterCount = 0, ord
     const quotaLimits = {
       openai: { limit: 10000, unit: 'requests' },
       elevenlabs: { limit: 10000, unit: 'characters' },
-      runwayml: { limit: 1000, unit: 'requests' }
+      runwayml: { limit: 1000, unit: 'requests' },
+      kingai: { limit: 1000, unit: 'requests' }
     };
     
     const quota = quotaLimits[provider];

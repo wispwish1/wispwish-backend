@@ -5,6 +5,8 @@ import express from 'express';
 import cors from 'cors';
 import nodemailer from "nodemailer";
 import path from 'path';
+import os from 'os';
+import { fileURLToPath } from 'url';
 import cookieParser from 'cookie-parser';
 import { connectDB } from './config/db.js';
 import admin from './routes/adminRoutes.js';
@@ -22,6 +24,10 @@ import scheduledDeliveryService from './services/scheduledDeliveryService.js';
 // import subscriptionFulfillmentService from './services/subscriptionFulfillmentService.js';
 
 const app = express();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+// Keep generated media outside the repo so VS Code Live Server does not auto-refresh the frontend.
+const generatedAssetsDir = path.join(os.tmpdir(), 'wispwish-generated');
 
 // Middleware
 
@@ -34,8 +40,9 @@ app.use(cors({
 // IMPORTANT: Webhook route MUST be before express.json() middleware
 app.use('/api/payment/webhook', express.raw({ type: 'application/json' }));
 
-app.use(express.json());
+app.use(express.json({ limit: '15mb' }));
 app.use(cookieParser());
+app.use('/generated', express.static(generatedAssetsDir));
 app.use(express.static('frontend'));
 app.use(express.static('.'));  // Serve root directory files
 
@@ -80,8 +87,13 @@ app.use('/api', (req, res) => {
   });
 });
 
+// Serve generator aliases explicitly so browser refresh never falls back to the home page.
+app.get(['/generator.html', '/giftgenerator.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, '../giftgenerator.html'));
+});
+
 // Serve frontend routes
-app.get(['/', '/generator.html', '/wishknot.html', '/pricing.html', '/how-it-works.html', '/login.html'], (req, res) => {
+app.get(['/', '/wishknot.html', '/pricing.html', '/how-it-works.html', '/login.html'], (req, res) => {
   res.sendFile('index.html', { root: 'frontend' });
 });
 
