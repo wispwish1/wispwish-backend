@@ -28,6 +28,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 // Keep generated media outside the repo so VS Code Live Server does not auto-refresh the frontend.
 const generatedAssetsDir = path.join(os.tmpdir(), 'wispwish-generated');
+const isVercel = Boolean(process.env.VERCEL);
 
 // Middleware
 
@@ -54,11 +55,14 @@ const initializeApp = async () => {
     console.log('✅ App initialized successfully');
   } catch (error) {
     console.error('❌ App initialization failed:', error);
-    process.exit(1);
+    if (!isVercel) {
+      process.exit(1);
+    }
+    throw error;
   }
 };
 
-initializeApp();
+initializeApp().catch(() => {});
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -151,9 +155,13 @@ app.post("/send-email", async (req, res) => {
 // Start Server
 const PORT = process.env.PORT || 5001;
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  // Scheduled delivery service automatically starts
-  scheduledDeliveryService.start();
-  // subscriptionFulfillmentService.start();
-});
+if (!isVercel) {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    // Scheduled delivery service automatically starts
+    scheduledDeliveryService.start();
+    // subscriptionFulfillmentService.start();
+  });
+}
+
+export default app;
