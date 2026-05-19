@@ -11,6 +11,7 @@ export const connectDB = async () => {
     }
     
     const conn = await mongoose.connect(mongoUri, {
+      
       serverSelectionTimeoutMS: 60000, // 60 seconds
       socketTimeoutMS: 120000, // 120 seconds
       maxPoolSize: 15, // Maintain up to 15 socket connections
