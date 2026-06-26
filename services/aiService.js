@@ -244,6 +244,39 @@ const POEM_LENGTH_OPTIONS = {
   }
 };
 
+const ILLUSTRATION_EXPERIENCES = {
+  'storybook': {
+    name: 'Storybook Illustration',
+    description: 'A scene from your story, illustrated like a page from a children\'s book',
+    visualStyle: 'Watercolor children\'s book illustration style, soft edges, warm palette, gentle lighting, storybook charm, whimsical details',
+    mood: 'whimsical and warm, like stepping into a beloved story'
+  },
+  'watercolor-portrait': {
+    name: 'Watercolor Memory Portrait',
+    description: 'A specific memory painted as a watercolor portrait',
+    visualStyle: 'Loose watercolor wash style, paper texture visible, painterly brushstrokes, soft color blending, artistic impressionist feel',
+    mood: 'nostalgic and tender, capturing a moment frozen in time'
+  },
+  'dream-scene': {
+    name: 'Dream Scene Artwork',
+    description: 'An ethereal dreamlike scene based on hopes and wishes',
+    visualStyle: 'Ethereal dreamlike style, soft glow effect, surreal lighting, pastel tones, floating elements, magical atmosphere, bioluminescent accents',
+    mood: 'dreamy and transcendent, like a memory of a place that exists only in imagination'
+  },
+  'fantasy-us': {
+    name: 'Fantasy Version of Us',
+    description: 'You and your loved one reimagined as fantasy characters',
+    visualStyle: 'Digital painting style, cinematic lighting, fantasy art, rich vibrant colors, detailed character design, epic atmospheric backdrop',
+    mood: 'grand and magical, like a scene from an epic tale'
+  },
+  'future-memory': {
+    name: 'Future Memory Illustration',
+    description: 'A beautiful vision of a future moment you dream of sharing',
+    visualStyle: 'Warm nostalgic style, slightly faded film-grade colors, golden hour lighting, soft bokeh, tender intimate atmosphere, photorealistic with painterly touches',
+    mood: 'warm and hopeful, like looking at a photograph of a moment that has not happened yet'
+  }
+};
+
 const TONE_STYLE_RULES = {
   romantic: 'Romantic -> soft, intimate, heartfelt.',
   funny: 'Funny/Playful -> light, warm, slightly witty, never cringe.',
@@ -514,21 +547,23 @@ const buildPremiumPoemInput = (gift, languageName) => {
   const tone = gift.tone || 'heartfelt';
 
   return {
-    systemPrompt: `You are an expert emotional gift writer who creates deeply personal, memorable poems and stories.
+    systemPrompt: `You are an expert emotional gift writer who creates deeply personal, unforgettable poems and stories that feel like a hug for the soul.
 
-Your writing must feel human, warm, and specific - never generic or greeting-card-like.
+Your writing must feel human, warm, and breathtakingly specific - never generic or greeting-card-like.
 
 Core rules:
-- Use the recipient's name naturally at least 2-3 times throughout the writing
-- Every personality trait provided MUST appear or be reflected in the writing
-- Every memory or detail provided MUST be woven into the writing - do not skip any
+- Use the recipient's name naturally at least 2-3 times throughout the writing - make each mention land emotionally
+- Every personality trait provided MUST appear or be reflected in the writing in a way that shows, not tells
+- Every memory or detail provided MUST be woven into the writing as a vivid, sensory scene - do not skip any
 - Match the tone precisely and keep it consistent from first line to last
-- Use concrete, specific imagery - no vague phrases like "you mean the world to me"
-- If writing a poem, maintain a consistent rhyme scheme (ABAB or AABB)
-- Do NOT use cliches: "words cannot express", "heart of gold", "shining light", "cup overflows"
+- Use concrete, specific imagery that paints a picture - show the moment, don't describe it abstractly
+- If writing a poem, maintain a consistent rhyme scheme (ABAB or AABB) and a natural, musical rhythm
+- Start strong - the first line should pull the reader in immediately with a specific image or feeling
+- End with emotional resonance - the last lines should linger
+- Do NOT use cliches: "words cannot express", "heart of gold", "shining light", "cup overflows", "one in a million", "meant to be"
 - Do NOT add a title, explanation, or intro - output only the poem or story
 - Do NOT mention AI`,
-    userPrompt: `Write a ${tone} ${gift.giftType || 'poem'} in ${languageName} using ALL of the details below.
+    userPrompt: `Write a ${tone} ${gift.giftType || 'poem'} in ${languageName} using ALL of the details below. Make it feel like it was written specifically for this one person - every line should reflect something real about them.
 
 RECIPIENT: ${gift.recipientName || 'Recipient'}
 RELATIONSHIP: ${gift.relationship || 'friend'}
@@ -536,22 +571,24 @@ OCCASION: ${gift.occasion || 'special occasion'}
 TONE: ${tone} - ${TONE_STYLE_RULES[tone] || TONE_STYLE_RULES.heartfelt}
 LENGTH: ${lengthOption.label} - ${lengthOption.instruction}
 
-PERSONALITY TRAITS (use ALL of these in the writing):
+PERSONALITY TRAITS (weave ALL of these into the writing naturally - show them through specific moments, not just namedropping):
 ${personalityTraits.length ? personalityTraits.map(t => `- ${t}`).join('\n') : '- kind, thoughtful, memorable'}
 
-MEMORIES & PERSONAL DETAILS (reference ALL of these specifically):
+MEMORIES & PERSONAL DETAILS (use ALL of these as vivid, sensory scenes - describe what happened, how it felt, why it matters):
 ${memories.length ? memories.map(m => `- ${m}`).join('\n') : '- A meaningful shared moment'}
 
 SENDER'S MESSAGE TO INCLUDE:
 ${gift.senderMessage || 'No custom message provided'}
 
 MANDATORY RULES:
-1. Use ${gift.recipientName || 'the recipient'}'s name at least 2-3 times - not just at the start or end
-2. Every trait listed above must appear or be clearly felt in the writing
-3. Every memory listed above must be specifically mentioned - do not drop any detail
+1. Use ${gift.recipientName || 'the recipient'}'s name at least 2-3 times - each use should feel emotionally earned, not forced
+2. Every trait listed above must appear or be clearly felt in the writing through specific moments
+3. Every memory listed above must be specifically mentioned with sensory detail - do not drop any detail
 4. Keep the tone (${tone}) consistent throughout - no sudden mood shifts
-5. Zero cliches - every line must feel written specifically for THIS person
-6. Output ONLY the final poem or story - no title, no intro, no explanation`,
+5. Zero cliches - every line must feel written specifically for THIS person, not a template
+6. Start with a hook - the first line must be concrete and emotionally engaging
+7. End with a lasting emotional note - the final lines should feel like a meaningful closing thought
+8. Output ONLY the final poem or story - no title, no intro, no explanation`,
     lengthOption
   };
 };
@@ -973,7 +1010,7 @@ const generateHandwrittenPdf = async ({
   doc.font('Helvetica-BoldOblique')
     .fontSize(11)
     .fillColor(template.signature)
-    .text(`With love, ${safeSender}  ${String.fromCharCode(9829)}`, 0, dividerY + 16, {
+    .text(`With love, ${safeSender}`, 0, dividerY + 16, {
       width: pageWidth,
       align: 'center'
     });
@@ -1004,6 +1041,21 @@ const generatePremiumPoemBundle = async (gift, languageName) => {
   } catch (pdfError) {
     console.error('Premium poem PDF generation failed:', pdfError.message);
     result.pdfError = 'Handwritten PDF generation failed. Text is still available.';
+  }
+
+  try {
+    const voiceResult = await generateElevenLabsNarration({
+      text: finalText,
+      voiceStyle: gift.voiceStyle || 'warm-gentle',
+      voiceStyleId: gift.voiceStyleId,
+      voiceGender: gift.voiceGender || 'female',
+      tone: gift.tone || 'heartfelt'
+    });
+    result.voiceMessage = voiceResult;
+    result.audioUrl = voiceResult.audioUrl;
+  } catch (voiceError) {
+    console.error('Premium poem voice generation failed:', voiceError.message);
+    result.voiceError = 'Voice narration generation failed. Text is still available.';
   }
 
   return result;
@@ -2990,94 +3042,160 @@ const generateImages = async (gift) => {
   }
 };*/
 
-// King AI (AIMLAPI) Image Generation
-const generateImages = async (gift) => {
-  console.log('generateImages called with gift (King AI):', gift);
+const buildIllustrationPrompt = async (gift) => {
+  const {
+    recipientName = 'Someone',
+    senderName = 'Someone special',
+    tone = 'heartfelt',
+    memories = [],
+    occasion = 'special occasion',
+    relationship = '',
+    senderMessage = '',
+    personalityTraits = [],
+    experienceType = 'watercolor-portrait',
+    sceneDescription = '',
+    language = 'en'
+  } = gift;
 
-  const { giftType, recipientName = 'Someone', tone = 'heartfelt', memories = [], occasion = 'special occasion', language = 'en' } = gift || {};
-
-  // Map language codes to full names
   const languageMap = {
-    'en': 'English',
-    'es': 'Spanish',
-    'fr': 'French',
-    'de': 'German',
-    'it': 'Italian',
-    'pt': 'Portuguese',
-    'zh': 'Chinese',
-    'ja': 'Japanese',
-    'ko': 'Korean',
-    'hi': 'Hindi',
-    'ar': 'Arabic',
-    'ru': 'Russian'
+    'en': 'English', 'es': 'Spanish', 'fr': 'French', 'de': 'German',
+    'it': 'Italian', 'pt': 'Portuguese', 'zh': 'Chinese', 'ja': 'Japanese',
+    'ko': 'Korean', 'hi': 'Hindi', 'ar': 'Arabic', 'ru': 'Russian'
   };
-
   const languageName = languageMap[language] || 'English';
+  const experience = ILLUSTRATION_EXPERIENCES[experienceType] || ILLUSTRATION_EXPERIENCES['watercolor-portrait'];
+
+  const memoriesText = memories.length > 0 ? memories.join('\n- ') : 'a meaningful moment';
+  const traitsText = Array.isArray(personalityTraits) && personalityTraits.length > 0
+    ? personalityTraits.filter(Boolean).join(', ')
+    : '';
+  const senderMsg = senderMessage && senderMessage !== 'No custom message provided' ? senderMessage : '';
+
+  const promptCraftMessages = [
+    {
+      role: 'system',
+      content: `You are an expert visual prompt engineer. Your ONLY job is to write detailed, image-generation-optimized prompts.
+
+You will receive details about a person, a relationship, memories, and an illustration experience type. You must craft a single detailed image prompt that captures the emotional essence and visual scene.
+
+RULES:
+- Output ONLY the prompt text - no explanations, no quotes, no "Here is your prompt"
+- The prompt must be under 800 characters
+- Describe the scene visually: composition, lighting, colors, mood, characters, setting
+- Weave in the visual style of the requested experience type
+- Include emotional atmosphere words that set the tone
+- If a reference photo was provided, include "Reference photo provided for character resemblance - maintain facial features and appearance"
+- Write in ${languageName}
+- Never mention AI, generation, or that this is a prompt`
+    },
+    {
+      role: 'user',
+      content: `Create an image prompt for a ${tone} illustration.
+
+EXPERIENCE TYPE: ${experience.name}
+VISUAL STYLE: ${experience.visualStyle}
+MOOD: ${experience.mood}
+
+RECIPIENT: ${recipientName}
+RELATIONSHIP: ${relationship || 'loved one'}
+OCCASION: ${occasion}
+TONE: ${tone}
+
+SCENE DESCRIPTION: ${sceneDescription || 'Create a scene based on the memories below'}
+
+MEMORIES TO INSPIRE THE SCENE:
+- ${memoriesText}
+
+${traitsText ? `PERSONALITY TRAITS TO REFLECT IN THE SCENE: ${traitsText}` : ''}
+${senderMsg ? `SENDER'S MESSAGE TO INSPIRE MOOD: ${senderMsg}` : ''}
+
+Create one detailed image prompt that captures this scene in the specified visual style.`
+    }
+  ];
+
+  try {
+    const craftedPrompt = await callOpenAIChat({
+      messages: promptCraftMessages,
+      maxTokens: 500,
+      temperature: 0.72
+    });
+
+    console.log('Crafted illustration prompt:', craftedPrompt);
+    return craftedPrompt || `A ${tone} scene of ${recipientName}, ${experience.visualStyle}`;
+  } catch (error) {
+    console.error('Failed to craft illustration prompt, using fallback:', error.message);
+    const memoriesString = memories.length > 0 ? memories.join(', ') : 'a special moment';
+    return `A ${tone} scene for ${recipientName} at ${occasion}, ${experience.visualStyle}, inspired by: ${memoriesString}`;
+  }
+};
+
+const generateImages = async (gift) => {
+  console.log('generateImages called with gift:', gift);
+
+  const {
+    giftType, recipientName = 'Someone', tone = 'heartfelt',
+    memories = [], occasion = 'special occasion', language = 'en'
+  } = gift || {};
 
   if (!giftType || !recipientName) {
     console.error('generateImages: Missing required fields', { giftType, recipientName });
     throw new Error('giftType and recipientName are required');
   }
 
-  const memoriesString = memories.length > 0 ? memories.join(', ') : 'a special moment';
+  const craftedPrompt = await buildIllustrationPrompt(gift);
+  const hasReferencePhoto = Boolean(gift.referenceImage || gift.photo || gift.imageUrl);
 
-  // Create two different prompts for variety with language specification
-  const basePrompt = `A visual representation in ${languageName} of a ${tone} scene for ${recipientName} at a ${occasion}, inspired by: ${memoriesString}`;
+  // Create two variations with slightly different emphasis
   const prompts = [
-    `${basePrompt}. Artistic style, warm colors.`,
-    `${basePrompt}. Different artistic interpretation, vibrant colors.`
+    craftedPrompt,
+    `${craftedPrompt} -- slightly different composition, alternate angle, same emotional atmosphere`
   ];
 
-  console.log('Generated prompts for King AI:', prompts);
+  console.log('Generated illustration prompts:', prompts);
 
   try {
-    // Generate images with King AI (AIMLAPI)
     const imagePromises = prompts.map(async (prompt, index) => {
       const response = await axios.post(
-        'https://api.aimlapi.com/v1/images/generations', // King AI Image Generation endpoint
+        'https://api.aimlapi.com/v1/images/generations',
         {
           prompt: prompt,
-          model: 'dall-e-3', // Example model, adjust if King AI uses a different one
-          n: 1, // Number of images to generate
-          size: '1024x1024' // Image size, adjust if King AI uses different options
+          model: 'dall-e-3',
+          n: 1,
+          size: '1024x1024'
         },
         {
           headers: {
-            // Use the King AI Access Key for authorization
             Authorization: `Bearer ${process.env.KING_AI_ACCESS_KEY}`,
             'Content-Type': 'application/json'
           },
-          timeout: 60000 // Increased timeout for image generation
+          timeout: 60000
         }
       );
 
-      console.log(`King AI response ${index + 1}:`, response.data);
+      console.log(`Image API response ${index + 1}:`, response.data);
 
-      // Track King AI usage
       await apiTracker.trackAPIUsage('kingai', 1, 0);
 
       const imageUrl = response.data?.data?.[0]?.url;
       if (!imageUrl) {
-        throw new Error(`No image URL received from King AI for image ${index + 1}`);
+        throw new Error(`No image URL received for image ${index + 1}`);
       }
       return {
         _id: Math.random().toString(36).substring(2, 15),
         url: imageUrl,
+        prompt: prompt,
+        experienceType: gift.experienceType || 'watercolor-portrait'
       };
     });
 
-    // Wait for all images to complete
     const images = await Promise.all(imagePromises);
-    console.log('Generated images with King AI:', images);
+    console.log('Generated images:', images);
 
     return images;
   } catch (error) {
-    console.error('King AI Image Generation API error:', error.response?.data || error.message);
-
-    // Track error
+    console.error('Image Generation API error:', error.response?.data || error.message);
     await apiTracker.trackAPIUsage('kingai', 1, 0, null, true);
-
-    throw new Error('Failed to generate images with King AI: ' + (error.response?.data?.error || error.message));
+    throw new Error('Failed to generate images: ' + (error.response?.data?.error || error.message));
   }
 };
 
