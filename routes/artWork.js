@@ -13,7 +13,7 @@ function getPrice(giftType) {
   const prices = {
     'image': 10,
     'illustration': 10,
-    'poem': 8,
+    'poem': 10,
     'voice': 10
   };
   return prices[giftType] || 8;

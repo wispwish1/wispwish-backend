@@ -47,7 +47,7 @@ export const initializeGiftTypes = async () => {
   const count = await GiftType.countDocuments();
   if (count === 0) {
     const defaultGiftTypes = [
-      { name: 'poem', price: 8, description: 'AI-generated poem' },
+      { name: 'poem', price: 10, description: 'AI-generated poem' },
       { name: 'voice', price: 10, description: 'Personalized voice message' },
       { name: 'image', price: 10, description: 'Custom artwork' },
       { name: 'song', price: 10, description: 'Personalized song' },
