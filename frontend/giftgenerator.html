@@ -3027,8 +3027,18 @@
       </div>
     `;
       } else if (previewGift.type === 'poem') {
+        const poemAdminNotice = previewGift.isFallback ? `
+          <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-amber-800 text-sm">
+            <strong>Admin Notice:</strong> The AI generation service currently has limited availability.
+            Poem was generated using a template.
+            Please add credits to the OpenAI API key at
+            <a href="https://platform.openai.com/account/billing" target="_blank" class="underline font-medium">platform.openai.com/account/billing</a>
+            for full-quality AI-generated content.
+          </div>
+        ` : '';
         previewContent = `
       <div class="space-y-4">
+        ${poemAdminNotice}
         <div class="flex items-center space-x-4">
           <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center text-white">
             ${getGiftIcon('poem')}
@@ -3077,8 +3087,19 @@
       </div>
     `;
       } else if (previewGift.type === 'voice-poem') {
+        const adminNotice = previewGift.isFallback || previewGift.voiceWarning ? `
+          <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-amber-800 text-sm">
+            <strong>Admin Notice:</strong> The AI generation service currently has limited availability.
+            ${previewGift.isFallback ? 'Poem was generated using a template. ' : ''}
+            ${previewGift.voiceWarning ? 'Voice audio could not be generated. ' : ''}
+            Please add credits to the OpenAI API key at
+            <a href="https://platform.openai.com/account/billing" target="_blank" class="underline font-medium">platform.openai.com/account/billing</a>
+            for full-quality AI-generated content.
+          </div>
+        ` : '';
         previewContent = `
       <div class="space-y-4">
+        ${adminNotice}
         <div class="flex items-center space-x-4">
           <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white">
             ${getGiftIcon('voice-poem')}
@@ -4054,9 +4075,14 @@
 
       // 2) voice-poem: Poem + Voice combined
       if (preferredType === 'voice-poem') {
-        const poemText = generatedContent?.poem?.text || generatedContent?.text || data?.text || generatedContent || '';
+        let poemText = generatedContent?.poem?.text || generatedContent?.text || data?.text || generatedContent || '';
+        const isFallback = typeof poemText === 'string' && poemText.startsWith('[Template-generated poem - AI service unavailable]');
+        if (isFallback) {
+          poemText = poemText.replace(/^\[Template-generated poem - AI service unavailable\]\n\n/, '');
+        }
         const audioUrl = generatedContent?.voiceMessage?.audioUrl || generatedContent?.audioUrl || null;
         const script = generatedContent?.voiceMessage?.script || generatedContent?.script || generatedContent?.text || '';
+        const voiceWarning = generatedContent?.voice?.warning || generatedContent?.warning || null;
         return {
           type: 'voice-poem',
           title: `A Special ${occasion} Poem + Voice for ${recipientName}`,
@@ -4066,7 +4092,8 @@
           voiceStyle: generatedContent?.voiceStyleLabel || generatedContent?.voiceStyle || '',
           voiceGender: generatedContent?.voiceGender || '',
           voiceTone: generatedContent?.voiceTone || '',
-          isFallback: false
+          isFallback,
+          voiceWarning
         };
       }
 
@@ -4176,16 +4203,21 @@
       }
 
       // 7) Poem/text-only (fallback for poem or when no other type matches)
+      let poemContent =
+        generatedContent?.poem?.text ||
+        generatedContent?.text ||
+        data?.text ||
+        generatedContent;
+      const isPoemFallback = typeof poemContent === 'string' && poemContent.startsWith('[Template-generated poem - AI service unavailable]');
+      if (isPoemFallback) {
+        poemContent = poemContent.replace(/^\[Template-generated poem - AI service unavailable\]\n\n/, '');
+      }
       return {
         type: preferredType === 'poem' ? 'poem' : preferredType === 'voice-poem' ? 'voice-poem' : preferredType || 'voice-poem',
         title: `A Special ${occasion} ${preferredType === 'poem' ? 'Poem' : preferredType === 'voice-poem' ? 'Poem + Voice' : 'Gift'} for ${recipientName}`,
-        content:
-          generatedContent?.poem?.text ||
-          generatedContent?.text ||
-          data?.text ||
-          generatedContent,
+        content: poemContent,
         preview: preferredType === 'poem' ? 'A heartfelt poem crafted with your personal touch...' : preferredType === 'voice-poem' ? 'A heartfelt poem with voice narration...' : 'A heartfelt gift crafted for you...',
-        isFallback: false
+        isFallback: isPoemFallback
       };
     };
 

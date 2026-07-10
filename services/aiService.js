@@ -1252,6 +1252,56 @@ const pollTaskStatus = async (taskId, maxAttempts = 20, initialDelay = 5000) => 
 };
 */
 
+// Template-based poem fallback used when OpenAI quota is exhausted
+const generateTemplatePoem = ({ recipientName, tone, memories, occasion, language = 'en', relationship, senderMessage }) => {
+  const memoryList = Array.isArray(memories) && memories.length > 0
+    ? memories
+    : ['the special moments we share'];
+  const memoryText = memoryList.join(', ');
+
+  const toneOpeners = {
+    heartfelt: `For you, ${recipientName}, on this ${occasion}`,
+    funny: `${recipientName}, I could not let this ${occasion} pass without a laugh`,
+    thoughtful: `${recipientName}, as I reflect on this ${occasion}`,
+    inspiring: `${recipientName}, you light up every room you enter`,
+    nostalgic: `${recipientName}, I remember it like yesterday`,
+  };
+  const toneClosers = {
+    heartfelt: `With all my love and warmth`,
+    funny: `Stay awesome, keep smiling`,
+    thoughtful: `Thinking of you, always`,
+    inspiring: `Keep shining, keep inspiring`,
+    nostalgic: `Forever in my heart`,
+  };
+
+  const opener = toneOpeners[tone] || toneOpeners.heartfelt;
+  const closer = toneClosers[tone] || toneClosers.heartfelt;
+
+  const lines = [
+    opener + ',',
+    '',
+    `I think about ${memoryText}`,
+    `and feel so grateful you are in my life.`,
+    `On this ${occasion}, I wanted to tell you`,
+    `just how much you truly mean to me.`,
+    '',
+  ];
+
+  if (relationship) {
+    lines.splice(3, 0, `As ${relationship === 'self' ? 'I' : 'my ' + relationship}, you bring so much joy,`);
+  }
+
+  if (senderMessage) {
+    lines.push(`"${senderMessage}"`);
+    lines.push('');
+  }
+
+  lines.push(`— ${closer}`);
+  lines.push(`  ${recipientName}`);
+
+  return lines.join('\n');
+};
+
 // Handle text-based and voice gifts
 const generateContent = async (gift) => {
   const {
@@ -1488,11 +1538,25 @@ Narration: one short spoken line under 18 words.`
 
   try {
     if (prompt) {
-      textContent = await callOpenAIChat({
-        messages: [{ role: 'user', content: prompt }],
-        maxTokens: 500,
-        temperature: 0.7,
-      });
+      try {
+        textContent = await callOpenAIChat({
+          messages: [{ role: 'user', content: prompt }],
+          maxTokens: 500,
+          temperature: 0.7,
+        });
+      } catch (openAIError) {
+        console.warn('OpenAI call failed, using template fallback:', openAIError.message);
+        textContent = generateTemplatePoem({
+          recipientName,
+          tone,
+          memories,
+          occasion,
+          language,
+          relationship,
+          senderMessage
+        });
+        textContent = '[Template-generated poem - AI service unavailable]\n\n' + textContent;
+      }
       console.log('ChatGPT generated text:', textContent);
     }
 
@@ -1501,15 +1565,30 @@ Narration: one short spoken line under 18 words.`
           throw new Error('OpenAI returned empty voice message content');
         }
 
-        const narration = await generateElevenLabsNarration({
-          text: textContent,
-          voiceStyle,
-          voiceStyleId,
-          voiceGender,
-          tone
-        });
-
-        console.log('ElevenLabs response received');
+        let narration;
+        try {
+          narration = await generateElevenLabsNarration({
+            text: textContent,
+            voiceStyle,
+            voiceStyleId,
+            voiceGender,
+            tone
+          });
+          console.log('ElevenLabs response received');
+        } catch (elevenLabsError) {
+          console.warn('ElevenLabs voice generation failed, returning text only:', elevenLabsError.message);
+          return {
+            text: textContent,
+            audio: null,
+            audioUrl: null,
+            voiceStyle: voiceStyle || '',
+            voiceStyleLabel: '',
+            voiceGender: voiceGender || '',
+            tone: tone || '',
+            settings: null,
+            warning: 'Voice audio unavailable'
+          };
+        }
 
         return {
           text: textContent,

@@ -261,7 +261,7 @@ router.post('/generate', optionalAuth, checkSubscriptionLimit, async (req, res) 
       console.log('✅ Full Experience gift generated with all components');
     } else if (giftType === 'voice-poem') {
       // Generate poem + voice together (not premium bundle - just text + audio)
-      const [poemResult, voiceResult] = await Promise.all([
+      const results = await Promise.allSettled([
         aiService.generateContent({
           giftType: 'poem',
           recipientName,
@@ -302,6 +302,9 @@ router.post('/generate', optionalAuth, checkSubscriptionLimit, async (req, res) 
           isRegenerate
         })
       ]);
+
+      const poemResult = results[0].status === 'fulfilled' ? results[0].value : { text: 'Poem generation unavailable. Please check the AI service configuration.', error: results[0].reason?.message };
+      const voiceResult = results[1].status === 'fulfilled' ? results[1].value : { text: 'Voice generation unavailable. Please check the AI service configuration.', audioUrl: null, audio: null, error: results[1].reason?.message };
 
       generatedContent = {
         type: 'voice-poem',
