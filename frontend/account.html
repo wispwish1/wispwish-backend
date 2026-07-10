@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Account - WispWish</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <!-- Chatbot Widget -->
+    <link rel="stylesheet" href="css/chatbot.css">
+    <script src="js/chatbot.js" defer></script>
+    <style>
+        body {
+            font-family: 'Space Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #fdf2f8 0%, #eef2ff 100%);
+            min-height: 100vh;
+        }
+    </style>
+</head>
+
+<body class="text-gray-900">
+    <div id="navbar"></div>
+
+    <main class="max-w-6xl mx-auto px-4 py-12">
+        <div class="mb-10">
+            <div class="flex items-center justify-between">
+                <p class="text-sm uppercase tracking-widest text-pink-500 font-semibold">Account</p>
+                <button onclick="logout()"
+                    class="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-sm font-medium transition-colors">
+                    Logout
+                </button>
+            </div>
+            <h1 class="text-4xl font-bold text-gray-900 mt-2">Welcome back<span id="account-user-name"></span></h1>
+            <p class="text-gray-600 mt-2 max-w-2xl">Manage your gifting plan, see when your next monthly gift unlocks,
+                and keep track of how many heartfelt surprises you've sent.</p>
+        </div>
+
+        <div class="grid gap-8 lg:grid-cols-3">
+            <section class="lg:col-span-2 bg-white/90 rounded-2xl shadow-xl border border-pink-100 p-8">
+                <div class="flex items-center justify-between flex-wrap gap-4 mb-6">
+                    <div>
+                        <p class="text-sm uppercase tracking-widest text-pink-500 font-semibold">Plan Overview</p>
+                        <h2 id="plan-heading" class="text-2xl font-bold text-gray-900">Checking your plan...</h2>
+                    </div>
+                    <span id="plan-status-pill"
+                        class="px-4 py-2 rounded-full text-sm font-semibold bg-gray-100 text-gray-600">Checking...</span>
+                </div>
+
+                <div id="plan-details" class="space-y-6">
+                    <div class="animate-pulse space-y-2">
+                        <div class="h-4 bg-gray-200 rounded w-1/2"></div>
+                        <div class="h-4 bg-gray-200 rounded w-1/3"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="bg-white/90 rounded-2xl shadow-xl border border-indigo-100 p-8">
+                <p class="text-sm uppercase tracking-widest text-indigo-500 font-semibold">Profile</p>
+                <div class="mt-4 space-y-3">
+                    <div>
+                        <p class="text-sm text-gray-500">Name</p>
+                        <p id="profile-name" class="text-lg font-semibold text-gray-900">—</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Email</p>
+                        <p id="profile-email" class="text-lg font-semibold text-gray-900 break-words">—</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Member since</p>
+                        <p id="profile-created" class="text-lg font-semibold text-gray-900">—</p>
+                    </div>
+                </div>
+                <div class="mt-8 p-4 rounded-xl bg-indigo-50 border border-indigo-100 text-sm text-indigo-900">
+                    Need help with your plan? Email <a href="mailto:hello@wispwish.com"
+                        class="font-semibold underline">hello@wispwish.com</a> and we'll take care of everything.
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <div id="footer"></div>
+
+    <script src="js/config.js"></script>
+    <script src="js/navbar.js"></script>
+    <script>
+        const defaultBackendHost = CONFIG.API_BASE_URL.replace(/\/api$/, '');
+
+        const planDetailsEl = document.getElementById('plan-details');
+        const planStatusPill = document.getElementById('plan-status-pill');
+        const planHeadingEl = document.getElementById('plan-heading');
+        const profileNameEl = document.getElementById('profile-name');
+        const profileEmailEl = document.getElementById('profile-email');
+        const profileCreatedEl = document.getElementById('profile-created');
+        const heroNameEl = document.getElementById('account-user-name');
+        const PLAN_LIBRARY = {
+            monthly: {
+                badge: 'Monthly Plan',
+                name: 'Monthly Gifting Plan',
+                tagline: 'Ready for monthly magic?',
+                description: 'Unlock one heartfelt AI-crafted gift every 30 days. No extra checkout when you send.',
+                cadence: 'Renews every 30 days',
+                giftSummary: '1 handcrafted gift is included each month.',
+                cta: 'Start Monthly Plan',
+                query: 'monthly'
+            },
+            weekly: {
+                badge: 'Weekly Plan',
+                name: 'Weekly Caring Plan',
+                tagline: 'A check-in every seven days.',
+                description: 'Send constant encouragement with one AI-crafted gift every week—ideal for ongoing care.',
+                cadence: 'Renews every 7 days',
+                giftSummary: '1 handcrafted gift is included each week.',
+                cta: 'Start Weekly Plan',
+                query: 'weekly'
+            }
+        };
+
+        const formatDate = (value) => {
+            if (!value) return '—';
+            try {
+                return new Date(value).toLocaleDateString();
+            } catch {
+                return value;
+            }
+        };
+
+        const formatDays = (days) => {
+            if (days == null) return '';
+            const value = Number(days);
+            if (Number.isNaN(value)) return '';
+            return `${value} day${value === 1 ? '' : 's'} remaining`;
+        };
+
+        const normalizePlan = (rawPlan) => {
+            if (!rawPlan) return null;
+            const status = rawPlan.status || rawPlan.plan?.status;
+            if (!status || status === 'inactive') return null;
+
+            const frequency =
+                rawPlan.frequency ||
+                rawPlan.plan?.frequency ||
+                (PLAN_LIBRARY[rawPlan.planId] ? rawPlan.planId : null);
+
+            const planName =
+                rawPlan.planName ||
+                rawPlan.plan?.planName ||
+                PLAN_LIBRARY[frequency]?.name ||
+                'Custom Plan';
+
+            return {
+                ...rawPlan,
+                status,
+                frequency,
+                planName,
+                planActivatedAt: rawPlan.planActivatedAt || rawPlan.plan?.planActivatedAt,
+                planExpiresAt: rawPlan.planExpiresAt || rawPlan.plan?.planExpiresAt,
+            };
+        };
+
+        const renderPlan = (plan) => {
+            if (!plan || plan.status !== 'active') {
+                planHeadingEl.textContent = 'Choose Your Plan';
+                planStatusPill.textContent = 'No active plan';
+                planStatusPill.className = 'px-4 py-2 rounded-full text-sm font-semibold bg-gray-100 text-gray-600';
+                planDetailsEl.innerHTML = `
+                    <div class="space-y-4"> 
+                        ${Object.entries(PLAN_LIBRARY).map(([key, meta]) => `
+                            <div class="rounded-2xl border border-pink-100 bg-white/80 p-6 shadow-sm">
+                                <p class="text-sm uppercase tracking-widest text-pink-500 font-semibold">${meta.badge}</p>
+                                <h3 class="text-2xl font-bold text-gray-900 mt-1">${meta.name}</h3>
+                                <p class="text-gray-600 mt-3">${meta.description}</p>
+                                <p class="text-sm text-gray-500 mt-2">${meta.cadence}</p>
+                                <div class="mt-4 flex flex-wrap gap-3 items-center">
+                                    <a href="pricing.html?plan=${key}" class="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 text-white font-semibold shadow-lg hover:shadow-xl transition">${meta.cta}</a>
+                                    <span class="text-sm text-gray-500">${meta.giftSummary}</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                return;
+            }
+
+            const planKey = PLAN_LIBRARY[plan.frequency]
+                ? plan.frequency
+                : PLAN_LIBRARY[plan.planId]
+                    ? plan.planId
+                    : 'monthly';
+            const meta = PLAN_LIBRARY[planKey];
+            const statusClass = plan.status === 'active'
+                ? 'bg-emerald-100 text-emerald-700'
+                : plan.status === 'expired'
+                    ? 'bg-gray-200 text-gray-600'
+                    : 'bg-amber-100 text-amber-700';
+
+            planHeadingEl.textContent = plan.planName || meta.name;
+            planStatusPill.textContent = plan.status.charAt(0).toUpperCase() + plan.status.slice(1);
+            planStatusPill.className = `px-4 py-2 rounded-full text-sm font-semibold ${statusClass}`;
+
+            const daysRemaining = formatDays(plan.daysRemaining);
+            const expiresOn = plan.planExpiresAt ? new Date(plan.planExpiresAt).toLocaleDateString() : null;
+
+            planDetailsEl.innerHTML = `
+                <div class="grid gap-4 md:grid-cols-2">
+                    <div class="rounded-xl border border-pink-100 p-5 bg-pink-50/60">
+                        <p class="text-xs font-semibold uppercase tracking-widest text-pink-500">${meta.badge}</p>
+                        <p class="text-xl font-bold text-gray-900 mt-2">${plan.planName || meta.name}</p>
+                        <p class="text-sm text-gray-600 mt-2">${meta.description}</p>
+                    </div>
+                    <div class="rounded-xl border border-violet-100 p-5 bg-violet-50/60">
+                        <p class="text-xs font-semibold uppercase tracking-widest text-violet-500">Included</p>
+                        <p class="text-xl font-bold text-gray-900 mt-2">${meta.giftSummary}</p>
+                        <p class="text-sm text-gray-600 mt-2">${meta.cadence}</p>
+                    </div>
+                </div>
+
+                <div class="grid gap-4 md:grid-cols-3 mt-6">
+                    <div class="rounded-xl border border-gray-100 p-4 bg-white">
+                        <p class="text-xs uppercase tracking-widest text-gray-400 font-semibold">Plan started</p>
+                        <p class="text-lg font-semibold text-gray-900 mt-2">${formatDate(plan.planActivatedAt)}</p>
+                    </div>
+                    <div class="rounded-xl border border-gray-100 p-4 bg-white">
+                        <p class="text-xs uppercase tracking-widest text-gray-400 font-semibold">Plan renews</p>
+                        <p class="text-lg font-semibold text-gray-900 mt-2">${expiresOn || meta.cadence}</p>
+                        ${daysRemaining ? `<p class="text-sm text-gray-500">${daysRemaining}</p>` : ''}
+                    </div>
+                    <div class="rounded-xl border border-gray-100 p-4 bg-white">
+                        <p class="text-xs uppercase tracking-widest text-gray-400 font-semibold">Plan status</p>
+                        <p class="text-lg font-semibold text-gray-900 mt-2">${plan.status === 'active' ? 'Active' : plan.status}</p>
+                        <p class="text-sm text-emerald-600">Create whenever you feel ready.</p>
+                    </div>
+                    <div id="quota-section" class="rounded-xl border border-indigo-100 p-4 bg-indigo-50">
+                        <p class="text-xs uppercase tracking-widest text-indigo-500 font-semibold">Gift Quota</p>
+                        <p id="quota-text" class="text-lg font-semibold text-gray-900 mt-2">Checking...</p>
+                        <p id="quota-detail" class="text-sm text-gray-600"></p>
+                    </div>
+                </div>
+
+                <div class="mt-6 rounded-xl border border-indigo-100 bg-indigo-50/70 p-5 text-sm text-indigo-900">
+                    <p class="font-semibold mb-1">${meta.tagline}</p>
+                    <p>Each ${meta.name.toLowerCase()} cycle covers one gift. Need another before it renews? You can still send an extra by finishing the regular checkout flow.</p>
+                </div>
+            `;
+
+            // Load quota information after rendering
+            setTimeout(async () => {
+                const token = localStorage.getItem('token');
+                if (!token) return;
+
+                try {
+                    const userResponse = await fetch(`${defaultBackendHost}/api/auth/me`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const userData = await userResponse.json();
+                    const userEmail = userData?.user?.email;
+
+                    if (!userEmail) return;
+
+                    const response = await fetch(`${defaultBackendHost}/api/gift/can-create`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ email: userEmail })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        const quotaText = document.getElementById('quota-text');
+                        const quotaDetail = document.getElementById('quota-detail');
+
+                        if (!quotaText) return;
+
+                        if (data.planStatus === 'active' && data.limit != null) {
+                            const periodLabel = data.subscriptionType === 'weekly' ? 'week' : 'month';
+                            quotaText.textContent = `${data.remaining} gift remaining this ${periodLabel}`;
+                            quotaText.className = data.remaining > 0
+                                ? 'text-lg font-semibold text-emerald-600 mt-2'
+                                : 'text-lg font-semibold text-gray-900 mt-2';
+
+                            if (data.remaining === 0) {
+                                quotaDetail.textContent = 'Your gift limit has been used.';
+                                quotaDetail.className = 'text-sm text-red-600 mt-1';
+                            } else {
+                                const resetDate = data.resetDate ? new Date(data.resetDate).toLocaleDateString() : '';
+                                quotaDetail.textContent = resetDate ? `Resets on ${resetDate}` : '';
+                                quotaDetail.className = 'text-sm text-gray-600';
+                            }
+                        } else {
+                            quotaText.textContent = 'No active plan';
+                            quotaDetail.textContent = '';
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error loading quota:', error);
+                    const quotaText = document.getElementById('quota-text');
+                    if (quotaText) quotaText.textContent = 'Unable to load';
+                }
+            }, 100);
+        };
+
+        async function loadAccount() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = `login.html?redirect=${encodeURIComponent('account.html')}`;
+                return;
+            }
+
+            try {
+                const response = await fetch(`${defaultBackendHost}/api/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Unable to fetch account');
+                }
+
+                const data = await response.json();
+                const user = data.user || {};
+                const plan = normalizePlan(user.plan); // <-- Fixed here
+
+                profileNameEl.textContent = user.name || '—';
+                profileEmailEl.textContent = user.email || '—';
+                profileCreatedEl.textContent = formatDate(user.createdAt);
+                heroNameEl.textContent = user.name ? `, ${user.name.split(' ')[0]}` : '';
+
+                if (plan) {
+                    localStorage.setItem('userPlan', JSON.stringify(plan));
+                } else {
+                    localStorage.removeItem('userPlan');
+                }
+
+                renderPlan(plan);
+            } catch (error) {
+                console.error('Error loading account:', error);
+                planStatusPill.textContent = 'Error loading plan';
+                planStatusPill.className = 'px-4 py-2 rounded-full text-sm font-semibold bg-red-100 text-red-700';
+                planDetailsEl.innerHTML = `
+            <div class="rounded-2xl border border-red-100 p-6 bg-red-50">
+                <h3 class="text-lg font-semibold text-red-700 mb-2">We hit a snag</h3>
+                <p class="text-red-600">We couldn't load your plan details right now. Please refresh the page or contact support if the issue persists.</p>
+            </div>
+        `;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetch("navbar.html")
+                .then((response) => response.text())
+                .then((data) => {
+                    document.getElementById("navbar").innerHTML = data;
+                    try { if (window.initNavbar) window.initNavbar(); } catch (e) { console.warn('Navbar init failed:', e); }
+                });
+
+            fetch("footer.html")
+                .then((response) => response.text())
+                .then((data) => {
+                    document.getElementById("footer").innerHTML = data;
+                });
+
+            loadAccount();
+        });
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('userEmail');
+            localStorage.removeItem('userName');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('userPlan');
+            window.location.href = '/login.html';
+        }
+    </script>
+</body>
+
+</html>

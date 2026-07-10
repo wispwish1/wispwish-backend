@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pricing - WispWish</title>
+  <!-- API Integration -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/main.js"></script>
+  <!-- <script src="js/pricing.js"></script> DISABLED: Using inline script instead -->
+  <!-- Chatbot Widget -->
+  <link rel="stylesheet" href="css/chatbot.css">
+  <script src="js/chatbot.js" defer></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      line-height: 1.6;
+      background: linear-gradient(to bottom right, #fdf2f8, #faf5ff, #eef2ff);
+      color: #333;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0 0 10px;
+    }
+
+    a {
+      text-decoration: none;
+    }
+
+    section {
+      padding: 60px 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: auto;
+      padding: 0 15px;
+    }
+
+    /* Cards */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .icon-box {
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 15px;
+      color: white;
+      font-size: 24px;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 10px 20px;
+      border-radius: 25px;
+      font-weight: bold;
+      transition: 0.3s;
+      text-align: center;
+    }
+
+    .btn-primary {
+      background: linear-gradient(to right, #ec4899, #8b5cf6);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: scale(1.05);
+    }
+
+    .btn-white {
+      background: #fff;
+      color: #7c3aed;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-white:hover {
+      transform: scale(1.05);
+    }
+
+    .subscription-label {
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 12px;
+      font-weight: 600;
+      color: #94a3b8;
+      margin-bottom: 6px;
+    }
+
+    .text-center {
+      text-align: center;
+    }
+
+    .price {
+      font-size: 28px;
+      font-weight: bold;
+      color: #ec4899;
+    }
+
+    .addon {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 15px;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      margin-bottom: 10px;
+    }
+
+    .cta {
+      background: linear-gradient(to bottom right, #ec4899, #8b5cf6, #4338ca);
+      color: white;
+    }
+
+    .cta p {
+      color: #fbcfe8;
+    }
+
+    .loading-spinner {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 4px solid rgba(236, 72, 153, 0.2);
+      border-top-color: #ec4899;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+
+    @keyframes spin {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* Enhanced loading animation */
+    @keyframes pulse {
+      0% {
+        opacity: 0.6;
+      }
+
+      50% {
+        opacity: 1;
+      }
+
+      100% {
+        opacity: 0.6;
+      }
+    }
+
+    .loading-text {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    /* Subscription Cards */
+    .subscription-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 25px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      transition: all 0.3s ease;
+      border: 1px solid #f0f0f0;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .subscription-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+      border-color: #eee;
+    }
+
+    .plan-badge {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: linear-gradient(to right, #f59e0b, #f97316);
+      color: white;
+      font-size: 10px;
+      font-weight: bold;
+      padding: 4px 10px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .plan-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 15px;
+      font-size: 28px;
+      background: #ec48991a;
+      color: #ec4899;
+    }
+
+    .subscription-card:nth-child(2) .plan-icon {
+      background: #8b5cf61a;
+      color: #8b5cf6;
+    }
+
+    .subscription-card h3 {
+      text-align: center;
+      font-size: 22px;
+      margin: 0 0 10px;
+      color: #333;
+    }
+
+    .plan-frequency {
+      text-align: center;
+      color: #666;
+      font-size: 14px;
+      margin: 0 0 15px;
+    }
+
+    .plan-price {
+      text-align: center;
+      font-size: 32px;
+      font-weight: bold;
+      margin: 0 0 20px;
+      color: #ec4899;
+    }
+
+    .plan-price span {
+      font-size: 14px;
+      color: #777;
+      font-weight: normal;
+    }
+
+    .plan-feature-list {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 25px;
+      flex-grow: 1;
+    }
+
+    .plan-feature-list li {
+      padding: 8px 0;
+      padding-left: 25px;
+      position: relative;
+      color: #555;
+      font-size: 14px;
+    }
+
+    .plan-feature-list li:before {
+      content: "?";
+      position: absolute;
+      left: 0;
+      color: #10b981;
+      font-weight: bold;
+    }
+
+    .plan-btn {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      font-weight: bold;
+      text-align: center;
+      border: none;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 16px;
+      background: linear-gradient(to right, #ec4899, #8b5cf6);
+      color: white;
+    }
+
+    .plan-btn:hover {
+      transform: scale(1.03);
+      box-shadow: 0 5px 15px rgba(147, 51, 234, 0.4);
+    }
+
+    .subscription-details-card {
+      margin-top: 30px;
+      border: 1px solid rgba(236, 72, 153, 0.15);
+      border-radius: 18px;
+      padding: 24px;
+      background: linear-gradient(to bottom right, #fff, #fdf4ff);
+    }
+
+    .subscription-details-card h4 {
+      margin-top: 0;
+      margin-bottom: 6px;
+      font-size: 20px;
+      color: #312e81;
+    }
+
+    .subscription-details-card p {
+      color: #555;
+      margin-bottom: 16px;
+    }
+
+    .subscription-form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 18px;
+    }
+
+    .subscription-form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .subscription-form-group label {
+      font-size: 14px;
+      font-weight: 600;
+      color: #4c1d95;
+      margin-bottom: 6px;
+    }
+
+    .subscription-form-group input,
+    .subscription-form-group select,
+    .subscription-form-group textarea {
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 15px;
+      outline: none;
+      transition: border 0.2s, box-shadow 0.2s;
+      font-family: inherit;
+      background: white;
+    }
+
+    .subscription-form-group textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    .subscription-form-group input:focus,
+    .subscription-form-group select:focus,
+    .subscription-form-group textarea:focus {
+      border-color: #ec4899;
+      box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.15);
+    }
+
+    .subscription-form-helper {
+      font-size: 13px;
+      color: #6b7280;
+      margin-top: 6px;
+    }
+
+    .subscription-form-note {
+      margin-top: 18px;
+      font-size: 14px;
+      color: #4b5563;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Mobile Responsiveness */
+    @media (max-width: 768px) {
+      section {
+        padding: 40px 15px;
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+      }
+
+      .container {
+        padding: 0 10px;
+      }
+
+      h1 {
+        font-size: 28px !important;
+      }
+
+      h2 {
+        font-size: 24px !important;
+      }
+
+      h3 {
+        font-size: 20px;
+      }
+
+      .price {
+        font-size: 24px;
+      }
+
+      .btn {
+        padding: 8px 16px;
+        font-size: 14px;
+      }
+
+      .icon-box {
+        width: 48px;
+        height: 48px;
+        font-size: 20px;
+      }
+
+      .card {
+        padding: 15px;
+      }
+
+      .addon {
+        font-size: 14px;
+        padding: 8px 12px;
+      }
+
+      .flex {
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .cta h2 {
+        font-size: 28px !important;
+      }
+
+      p {
+        font-size: 16px;
+      }
+
+      /* Mobile adjustments for subscription cards */
+      .subscription-card {
+        padding: 20px;
+      }
+
+      .plan-price {
+        font-size: 28px;
+      }
+
+      .toggle-switch {
+        width: 100px;
+      }
+
+      input:checked+.slider:before {
+        transform: translateX(66px);
+      }
+
+      .subscription-details-card {
+        padding: 20px;
+      }
+
+      .subscription-form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 480px) {
+      h1 {
+        font-size: 24px !important;
+      }
+
+      h2 {
+        font-size: 20px !important;
+      }
+
+      .price {
+        font-size: 20px;
+      }
+
+      .btn {
+        padding: 8px 14px;
+        font-size: 13px;
+      }
+
+      .icon-box {
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
+      }
+
+      .card {
+        padding: 12px;
+      }
+
+      .addon {
+        font-size: 13px;
+      }
+
+      .cta p {
+        font-size: 14px;
+      }
+
+      /* Mobile adjustments for subscription cards */
+      .subscription-card {
+        padding: 15px;
+      }
+
+      .plan-price {
+        font-size: 24px;
+      }
+
+      .plan-feature-list li {
+        font-size: 13px;
+        padding: 6px 0;
+        padding-left: 20px;
+      }
+
+      .plan-btn {
+        padding: 12px;
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="navbar"></div>
+
+  <!-- Hero Section -->
+  <section class="text-center">
+    <div class="container">
+      <h1 style="font-size:40px;">
+        <span
+          style="background:linear-gradient(to right,#db2777,#7c3aed,#4338ca);-webkit-background-clip:text;color:transparent;">
+          Gifting Feelings Has Never Been
+        </span><br>
+        So <span
+          style="background:linear-gradient(to right,#f91e55);-webkit-background-clip:text;color:transparent;">Easy</span>
+        and So <span
+          style="background:linear-gradient(to right,#f91e55);-webkit-background-clip:text;color:transparent;">Affordable</span>
+      </h1>
+      <p style="font-size:18px;color:#555;">
+        ?? Each gift is delivered digitally with a personal link or email � no shipping, no delay.
+      </p>
+    </div>
+  </section>
+
+  <!-- Base Gift Types -->
+  <section>
+    <div class="container">
+      <div class="text-center">
+        <h2 style="font-size:30px;">Base Gift Types</h2>
+        <div
+          style="width:80px;height:4px;background:linear-gradient(to right,#ec4899,#8b5cf6);margin:10px auto;border-radius:2px;">
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <div class="icon-box" style="background:linear-gradient(to right,#ec4899,#a855f7);">📜🎤</div>
+          <h3>Poem + Voice</h3>
+          <p>Heartfelt poem read aloud in a warm, human-like voice with background music</p>
+          <div class="flex" style="display:flex;justify-content:space-between;align-items:center;margin-top:15px;">
+            <span class="price">$10 AUD</span>
+            <a href="giftgenerator.html" class="btn btn-primary">Create This Gift</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="icon-box" style="background:linear-gradient(to right,#6366f1,#a855f7);">???</div>
+          <h3>Illustration</h3>
+          <p>Unique artwork generated from your relationship or story + soft ambient music</p>
+          <div class="flex" style="display:flex;justify-content:space-between;align-items:center;margin-top:15px;">
+            <span class="price">$10 AUD</span>
+            <a href="giftgenerator.html" class="btn btn-primary">Create This Gift</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="icon-box" style="background:linear-gradient(to right,#3b82f6,#6366f1);">??</div>
+          <h3>Tribute Video</h3>
+          <p>Full video gift with text, voice narration & background music</p>
+          <div class="flex" style="display:flex;justify-content:space-between;align-items:center;margin-top:15px;">
+            <span class="price">$12 AUD</span>
+            <a href="giftgenerator.html" class="btn btn-primary">Create This Gift</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="icon-box" style="background:linear-gradient(to right,#2dd4bf,#3b82f6);">??</div>
+          <h3>AI Song</h3>
+          <p>Custom mini-song based on the story or occasion (instrumental or lyrical)</p>
+          <div class="flex" style="display:flex;justify-content:space-between;align-items:center;margin-top:15px;">
+            <span class="price">$10 AUD</span>
+            <a href="giftgenerator.html" class="btn btn-primary">Create This Gift</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="icon-box" style="background:linear-gradient(to right,#ec4899,#a855f7);">??</div>
+          <h3>WishKnot Gift</h3>
+          <p>Animated ribbon knot with message & energy metaphor + symbolic meaning</p>
+          <div class="flex" style="display:flex;justify-content:space-between;align-items:center;margin-top:15px;">
+            <span class="price">$9 AUD</span>
+            <a href="giftgenerator.html" class="btn btn-primary">Create This Gift</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Combo Experience -->
+  <section>
+    <div class="container">
+      <div class="card"
+        style="background:linear-gradient(to right,#db2777,#7c3aed,#4338ca);color:white;text-align:center;">
+        <div
+          style="background:#facc15;color:#111;display:inline-block;padding:8px 16px;border-radius:20px;margin-bottom:20px;font-weight:bold;">
+          ? Popular Choice</div>
+        <h2 style="font-size:28px;">The Full Experience</h2>
+        <p>Includes: Poem + Voice + Illustration + Tribute Video + Background Music + Narration</p>
+        <p>A complete emotional package in all formats</p>
+        <div style="margin:20px 0;font-size:24px;">
+          <strong>$22 AUD</strong> <span style="text-decoration:line-through;color:#ddd;margin-left:10px;">$26</span>
+        </div>
+        <a href="giftgenerator.html?occasion=combo"
+          onclick="window.location.href='giftgenerator.html?occasion=combo'; return false;" class="btn btn-white">?? Get
+          the Combo Gift</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Subscription Plans -->
+  <section style="background: linear-gradient(to bottom, #fff6fb, #f5ecff);">
+    <div class="container">
+      <div class="text-center">
+        <h2 style="font-size:30px;">Keep The Gifts Flowing</h2>
+        <p style="max-width:640px;margin:10px auto;color:#555;">
+          Choose a weekly or monthly subscription and we�ll automatically craft and deliver a fresh gift on your
+          schedule.
+        </p>
+      </div>
+
+      <div style="background:#fff;border-radius:20px;box-shadow:0 25px 60px rgba(236,72,153,0.1);padding:30px;">
+        <!-- <div style="max-width: 500px; margin: 0 auto 30px; text-align: center;">
+          <p style="margin-bottom: 15px; color: #555;">Enter your email to check subscription status or start a new plan:</p>
+          <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <input type="email" id="user-email" placeholder="Your email address" 
+              style="flex: 1; padding: 12px 16px; border: 1px solid #e5e7eb; border-radius: 14px; font-size: 15px; outline: none; transition: border 0.2s;"
+              onfocus="this.style.borderColor='#ec4899';" onblur="this.style.borderColor='#e5e7eb';" />
+            <button onclick="checkSubscriptionStatus()" 
+              style="padding: 12px 20px; background: linear-gradient(to right, #ec4899, #8b5cf6); color: white; border: none; border-radius: 14px; font-weight: bold; cursor: pointer; transition: all 0.3s ease;">
+              Check Status
+            </button>
+          </div>
+          <p id="email-status" style="font-size: 14px; color: #777; min-height: 20px;"></p>
+        </div> -->
+
+        <div id="pricing-plans-container" class="grid"
+          style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:30px;margin-top:20px;">
+          <!-- Monthly Plan -->
+          <div class="subscription-card">
+            <span class="plan-icon" style="background:#ec48991a;color:#ec4899;">???</span>
+            <h3>Monthly Plan</h3>
+            <p class="plan-frequency">1 gift per month</p>
+            <div class="plan-price">$15 <span>AUD/month</span></div>
+            <ul class="plan-feature-list">
+              <li>Perfect for milestone gifting & special moments</li>
+              <li>Choose any gift type each month</li>
+              <li>Built-in upgrades included</li>
+              <li>Pause or cancel anytime</li>
+              <li>Gift history tracking</li>
+            </ul>
+            <button class="plan-btn" data-plan-id="monthly">Start Monthly Plan</button>
+          </div>
+
+          <!-- Weekly Plan -->
+          <div class="subscription-card">
+            <span class="plan-badge">Popular</span>
+            <span class="plan-icon" style="background:#8b5cf61a;color:#8b5cf6;">??</span>
+            <h3>Weekly Plan</h3>
+            <p class="plan-frequency">1 gift per week</p>
+            <div class="plan-price">$28 <span>AUD/month</span></div>
+            <ul class="plan-feature-list">
+              <li>Ideal for ongoing love & support</li>
+              <li>Any gift type � poem, voice, image, video, or song</li>
+              <li>Premium upgrades included</li>
+              <li>Priority delivery scheduling</li>
+              <li>Personalized gift recommendations</li>
+            </ul>
+            <button class="plan-btn" data-plan-id="weekly">Start Weekly Plan</button>
+          </div>
+        </div>
+
+
+
+        <p id="subscription-feedback" class="hidden text-sm mt-4 text-center"></p>
+
+        <!-- Current Subscription Status Display -->
+        <div id="current-subscription-status"
+          class="hidden mt-6 bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-6">
+          <h3 class="text-lg font-bold text-gray-800 mb-3">Your Active Subscription</h3>
+          <div id="subscription-info" class="text-gray-700"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Add-ons -->
+  <section>
+    <div class="container text-center">
+      <h2 style="font-size:30px;">Optional Add-Ons</h2>
+      <p style="color:#555;">Available at checkout to upgrade any gift</p>
+      <div class="card" style="margin-top:20px;">
+        <!-- <div class="addon"><span>Extra Illustration</span><span class="price">$3 AUD</span></div> -->
+        <!-- <div class="addon"><span>Print-Ready Gift PDF</span><span class="price">$4 AUD</span></div> -->
+        <!-- <div class="addon"><span>Memory Certificate (Grief)</span><span class="price">$5 AUD</span></div> -->
+        <div class="addon"><span>Time-Locked Email Delivery</span><span class="price">$3 AUD</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- {/* Pay What You Can */} -->
+  <section class="py-16">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-3xl p-8 md:p-12 border-2 border-purple-200">
+        <div class="text-center">
+          <div class="flex items-center justify-center mb-6">
+            <svg class="h-10 w-10 text-purple-500 mr-3" fill="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+            </svg>
+            <h2 class="text-3xl font-bold text-gray-800">Pay What You Want</h2>
+          </div>
+          <p class="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+            For apology and grief gifts, we believe everyone deserves emotional support and connection,
+            regardless of financial circumstances. Choose an amount that feels right for you.
+          </p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+            <div class="bg-white rounded-2xl p-6 shadow-lg">
+              <div class="text-4xl mb-4">???</div>
+              <h3 class="text-xl font-semibold text-gray-800 mb-2">Grief & Loss Support</h3>
+              <p class="text-gray-600 mb-4">
+                Healing and remembrance gifts to help process loss and celebrate memories.
+              </p>
+              <div class="text-sm text-gray-500">
+                Minimum: $5 AUD � No maximum limit
+              </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-6 shadow-lg">
+              <div class="text-4xl mb-4">??</div>
+              <h3 class="text-xl font-semibold text-gray-800 mb-2">Apology & Closure</h3>
+              <p class="text-gray-600 mb-4">
+                Heartfelt messages to mend relationships and find peace through forgiveness.
+              </p>
+              <div class="text-sm text-gray-500">
+                Minimum: $5 AUD � No maximum limit
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-col sm:flex-row gap-6 justify-center items-center mb-6">
+            <a href="/giftgenerator.html"
+              class="bg-gradient-to-r from-purple-500 to-pink-600 text-white px-8 py-4 rounded-full text-lg font-semibold hover:scale-105 transform transition-all duration-200 shadow-lg hover:shadow-xl flex items-center space-x-2">
+              <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                <path
+                  d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+              </svg>
+              <span>Create Your Gift</span>
+            </a>
+          </div>
+
+          <div class="bg-white/80 rounded-xl p-6 border border-purple-100">
+            <div class="flex items-center justify-center mb-3">
+              <span class="text-2xl mr-2">??</span>
+              <span class="font-semibold text-gray-800">Community Impact</span>
+            </div>
+            <p class="text-gray-600 mb-4">
+              Your generosity helps us continue providing emotional support to everyone who needs it,
+              regardless of their financial situation.
+            </p>
+            <blockquote class="text-lg text-gray-700 italic">
+              "I could only afford $7, but the grief poem you created helped me process my father's passing.
+              Thank you for making healing accessible."
+            </blockquote>
+            <cite class="text-gray-600 font-semibold mt-2 block">� Maria K., Sydney</cite>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- CTA -->
+  <section class="cta text-center">
+    <div class="container">
+      <h2 style="font-size:36px;">Ready to Create Your Perfect Gift?</h2>
+      <p>Choose your format, share your story, and let AI create something beautiful</p>
+      <a href="giftgenerator.html" class="btn btn-white" style="margin-top:20px;">Start Creating Now ?</a>
+      <p style="margin-top:20px;">?? No shipping required � ?? Secure checkout � ? Instant delivery</p>
+    </div>
+  </section>
+  </section>
+
+  <!-- Combo Experience -->
+  <section>
+    <div class="container">
+      <div class="card"
+        style="background:linear-gradient(to right,#db2777,#7c3aed,#4338ca);color:white;text-align:center;">
+        <div
+          style="background:#facc15;color:#111;display:inline-block;padding:8px 16px;border-radius:20px;margin-bottom:20px;font-weight:bold;">
+          ? Popular Choice</div>
+        <h2 style="font-size:28px;">The Full Experience</h2>
+        <p>Includes: Poem + Voice + Illustration + Tribute Video + Background Music + Narration</p>
+        <p>A complete emotional package in all formats</p>
+        <div style="margin:20px 0;font-size:24px;">
+          <strong>$22 AUD</strong> <span style="text-decoration:line-through;color:#ddd;margin-left:10px;">$26</span>
+        </div>
+        <a href="giftgenerator.html?occasion=combo"
+          onclick="window.location.href='giftgenerator.html?occasion=combo'; return false;" class="btn btn-white">?? Get
+          the Combo Gift</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Subscription Plans -->
+  <section style="background: linear-gradient(to bottom, #fff6fb, #f5ecff);">
+    <div class="container">
+      <div class="text-center">
+        <h2 style="font-size:30px;">Keep The Gifts Flowing</h2>
+        <p style="max-width:640px;margin:10px auto;color:#555;">
+          Choose a weekly or monthly subscription and well automatically craft and deliver a fresh gift on your
+          schedule.
+        </p>
+      </div>
+
+      <div style="background:#fff;border-radius:20px;box-shadow:0 25px 60px rgba(236,72,153,0.1);padding:30px;">
+        <!-- <div style="max-width: 500px; margin: 0 auto 30px; text-align: center;">
+          <p style="margin-bottom: 15px; color: #555;">Enter your email to check subscription status or start a new plan:</p>
+          <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <input type="email" id="user-email" placeholder="Your email address" 
+              style="flex: 1; padding: 12px 16px; border: 1px solid #e5e7eb; border-radius: 14px; font-size: 15px; outline: none; transition: border 0.2s;"
+              onfocus="this.style.borderColor='#ec4899';" onblur="this.style.borderColor='#e5e7eb';" />
+            <button onclick="checkSubscriptionStatus()" 
+              style="padding: 12px 20px; background: linear-gradient(to right, #ec4899, #8b5cf6); color: white; border: none; border-radius: 14px; font-weight: bold; cursor: pointer; transition: all 0.3s ease;">
+              Check Status
+            </button>
+          </div>
+          <p id="email-status" style="font-size: 14px; color: #777; min-height: 20px;"></p>
+        </div> -->
+
+        <div id="pricing-plans-container" class="grid"
+          style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:30px;margin-top:20px;">
+          <!-- Monthly Plan -->
+          <div class="subscription-card">
+            <span class="plan-icon" style="background:#ec48991a;color:#ec4899;">???</span>
+            <h3>Monthly Plan</h3>
+            <p class="plan-frequency">1 gift per month</p>
+            <div class="plan-price">$15 <span>AUD/month</span></div>
+            <ul class="plan-feature-list">
+              <li>Perfect for milestone gifting & special moments</li>
+              <li>Choose any gift type each month</li>
+              <li>Built-in upgrades included</li>
+              <li>Pause or cancel anytime</li>
+              <li>Gift history tracking</li>
+            </ul>
+            <button class="plan-btn" data-plan-id="monthly">Start Monthly Plan</button>
+          </div>
+
+          <!-- Weekly Plan -->
+          <div class="subscription-card">
+            <span class="plan-badge">Popular</span>
+            <span class="plan-icon" style="background:#8b5cf61a;color:#8b5cf6;">??</span>
+            <h3>Weekly Plan</h3>
+            <p class="plan-frequency">1 gift per week</p>
+            <div class="plan-price">$28 <span>AUD/month</span></div>
+            <ul class="plan-feature-list">
+              <li>Ideal for ongoing love & support</li>
+              <li>Any gift type poem, voice, image, video, or song</li>
+              <li>Premium upgrades included</li>
+              <li>Priority delivery scheduling</li>
+              <li>Personalized gift recommendations</li>
+            </ul>
+            <button class="plan-btn" data-plan-id="weekly">Start Weekly Plan</button>
+          </div>
+        </div>
+
+
+
+        <p id="subscription-feedback" class="hidden text-sm mt-4 text-center"></p>
+
+        <!-- Current Subscription Status Display -->
+        <div id="current-subscription-status"
+          class="hidden mt-6 bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-6">
+          <h3 class="text-lg font-bold text-gray-800 mb-3">Your Active Subscription</h3>
+          <div id="subscription-info" class="text-gray-700"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Add-ons -->
+  <section>
+    <div class="container text-center">
+      <h2 style="font-size:30px;">Optional Add-Ons</h2>
+      <p style="color:#555;">Available at checkout to upgrade any gift</p>
+      <div class="card" style="margin-top:20px;">
+        <!-- <div class="addon"><span>Extra Illustration</span><span class="price">$3 AUD</span></div> -->
+        <!-- <div class="addon"><span>Print-Ready Gift PDF</span><span class="price">$4 AUD</span></div> -->
+        <!-- <div class="addon"><span>Memory Certificate (Grief)</span><span class="price">$5 AUD</span></div> -->
+        <div class="addon"><span>Time-Locked Email Delivery</span><span class="price">$3 AUD</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- {/* Pay What You Can */} -->
+  <section class="py-16">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-3xl p-8 md:p-12 border-2 border-purple-200">
+        <div class="text-center">
+          <div class="flex items-center justify-center mb-6">
+            <svg class="h-10 w-10 text-purple-500 mr-3" fill="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+            </svg>
+            <h2 class="text-3xl font-bold text-gray-800">Pay What You Want</h2>
+          </div>
+          <p class="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+            For apology and grief gifts, we believe everyone deserves emotional support and connection,
+            regardless of financial circumstances. Choose an amount that feels right for you.
+          </p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+            <div class="bg-white rounded-2xl p-6 shadow-lg">
+              <div class="text-4xl mb-4">???</div>
+              <h3 class="text-xl font-semibold text-gray-800 mb-2">Grief & Loss Support</h3>
+              <p class="text-gray-600 mb-4">
+                Healing and remembrance gifts to help process loss and celebrate memories.
+              </p>
+              <div class="text-sm text-gray-500">
+                Minimum: $5 AUD No maximum limit
+              </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-6 shadow-lg">
+              <div class="text-4xl mb-4">??</div>
+              <h3 class="text-xl font-semibold text-gray-800 mb-2">Apology & Closure</h3>
+              <p class="text-gray-600 mb-4">
+                Heartfelt messages to mend relationships and find peace through forgiveness.
+              </p>
+              <div class="text-sm text-gray-500">
+                Minimum: $5 AUD No maximum limit
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-col sm:flex-row gap-6 justify-center items-center mb-6">
+            <a href="/giftgenerator.html"
+              class="bg-gradient-to-r from-purple-500 to-pink-600 text-white px-8 py-4 rounded-full text-lg font-semibold hover:scale-105 transform transition-all duration-200 shadow-lg hover:shadow-xl flex items-center space-x-2">
+              <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                <path
+                  d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+              </svg>
+              <span>Create Your Gift</span>
+            </a>
+          </div>
+
+          <div class="bg-white/80 rounded-xl p-6 border border-purple-100">
+            <div class="flex items-center justify-center mb-3">
+              <span class="text-2xl mr-2">??</span>
+              <span class="font-semibold text-gray-800">Community Impact</span>
+            </div>
+            <p class="text-gray-600 mb-4">
+              Your generosity helps us continue providing emotional support to everyone who needs it,
+              regardless of their financial situation.
+            </p>
+            <blockquote class="text-lg text-gray-700 italic">
+              "I could only afford $7, but the grief poem you created helped me process my father's passing.
+              Thank you for making healing accessible."
+            </blockquote>
+            <cite class="text-gray-600 font-semibold mt-2 block"> Maria K., Sydney</cite>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- CTA -->
+  <section class="cta text-center">
+    <div class="container">
+      <h2 style="font-size:36px;">Ready to Create Your Perfect Gift?</h2>
+      <p>Choose your format, share your story, and let AI create something beautiful</p>
+      <a href="giftgenerator.html" class="btn btn-white" style="margin-top:20px;">Start Creating Now ?</a>
+      <p style="margin-top:20px;">?? No shipping required ?? Secure checkout ? Instant delivery</p>
+    </div>
+  </section>
+
+  <div id="footer"></div>
+  <script src="js/navbar.js"></script>
+  <script src="js/token-handler.js"></script>
+  <script>
+    fetch("navbar.html")
+      .then((response) => response.text())
+      .then((data) => {
+        document.getElementById("navbar").innerHTML = data;
+        try { if (window.initNavbar) window.initNavbar(); } catch (e) { console.warn('Navbar init failed:', e); }
+      });
+    // ============================================
+    // API BASE URL CONFIGURATION
+    // ============================================
+    // Use centralized config
+    const apiBaseUrl = CONFIG.API_BASE_URL;
+
+    console.log('🔧 API Base URL:', apiBaseUrl);
+
+    async function checkSubscriptionStatus() {
+      const emailInput = document.getElementById('user-email');
+      const email = emailInput.value.trim();
+      const statusElement = document.getElementById('email-status');
+
+      if (!email) {
+        statusElement.textContent = 'Please enter your email address';
+        statusElement.style.color = '#dc2626';
+        return;
+      }
+
+      // Simple email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        statusElement.textContent = 'Please enter a valid email address';
+        statusElement.style.color = '#dc2626';
+        return;
+      }
+
+      try {
+        statusElement.textContent = 'Checking...';
+        statusElement.style.color = '#777';
+
+        const response = await fetch(`${apiBaseUrl}/gift/can-create`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email, userId: localStorage.getItem('userId') || sessionStorage.getItem('userId') })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+
+          if (result.canCreate === false) {
+            statusElement.innerHTML = `You're on the <strong>${result.subscriptionType}</strong> plan. You've used <strong>${result.used}</strong> of <strong>${result.limit}</strong> gifts for this period. Next reset: <strong>${new Date(result.resetDate).toDateString()}</strong>`;
+            statusElement.style.color = '#16a34a';
+          } else {
+            statusElement.textContent = 'No active subscription found. You can create gifts without limits.';
+            statusElement.style.color = '#777';
+          }
+        } else {
+          statusElement.textContent = 'Error checking subscription status';
+          statusElement.style.color = '#dc2626';
+        }
+      } catch (error) {
+        console.error('Error checking subscription status:', error);
+        statusElement.textContent = 'Error checking subscription status';
+        statusElement.style.color = '#dc2626';
+      }
+    }
+
+    // Subscription plan purchase handlers
+    document.addEventListener('DOMContentLoaded', () => {
+      const planButtons = document.querySelectorAll('.plan-btn');
+
+      planButtons.forEach(button => {
+        button.addEventListener('click', async (e) => {
+          e.preventDefault();
+          const planId = button.getAttribute('data-plan-id');
+
+          if (!planId) {
+            console.error('No plan ID found');
+            return;
+          }
+
+          // Check if user is logged in
+          const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+          if (!token) {
+            alert('Please log in to purchase a subscription plan.');
+            window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.href);
+            return;
+          }
+
+          // Get user info from token
+          let userEmail = '';
+          let userName = '';
+          try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            userEmail = payload.email || '';
+            userName = payload.name || '';
+          } catch (err) {
+            console.error('Error parsing token:', err);
+          }
+
+
+          // Disable button and show loading state
+          const originalText = button.innerHTML;
+          button.disabled = true;
+          button.innerHTML = '<span class="loading-spinner" style="display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin 1s linear infinite;margin-right:8px;"></span>Checking...';
+
+          try {
+            // STEP 1: Check if user already has an active subscription
+            console.log('🔍 Checking for existing subscription...');
+            const checkResponse = await fetch(`${apiBaseUrl}/subscriptions/check-existing`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              }
+            });
+
+            if (!checkResponse.ok) {
+              const errorData = await checkResponse.json();
+
+              // Handle token expiration
+              if (errorData.tokenExpired) {
+                alert('Your session has expired. Please log in again.');
+                localStorage.removeItem('token');
+                sessionStorage.removeItem('token');
+                window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.href);
+                return;
+              }
+
+              throw new Error(errorData.message || 'Failed to check subscription status');
+            }
+
+            const checkData = await checkResponse.json();
+            console.log('✅ Subscription check result:', checkData);
+
+            // STEP 2: If user has active subscription, show message and stop
+            if (checkData.hasActiveSubscription) {
+              const sub = checkData.subscription;
+              alert(`You already have an active ${sub.planName}!\n\nYour current plan will remain active until ${sub.planExpiresAt ? new Date(sub.planExpiresAt).toLocaleDateString() : 'cancelled'}.`);
+
+              // Restore button
+              button.disabled = false;
+              button.innerHTML = originalText;
+              return;
+            }
+
+            // STEP 3: No active subscription, proceed to create checkout session
+            console.log('💳 Creating checkout session...');
+            button.innerHTML = '<span class="loading-spinner" style="display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin 1s linear infinite;margin-right:8px;"></span>Opening checkout...';
+
+            const response = await fetch(`${apiBaseUrl}/subscriptions/create-subscription-session`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                planId: planId,
+                customerEmail: userEmail,
+                customerName: userName,
+                userId: localStorage.getItem('userId') || sessionStorage.getItem('userId')
+              })
+            });
+
+            // Check if response is OK before parsing JSON
+            if (!response.ok) {
+              // Try to parse error message from JSON
+              let errorMessage = 'Failed to create checkout session';
+              try {
+                const errorData = await response.json();
+
+                // Check if token is expired
+                if (errorData.tokenExpired) {
+                  alert('Your session has expired. Please log in again.');
+                  // Clear expired tokens
+                  localStorage.removeItem('token');
+                  sessionStorage.removeItem('token');
+                  // Redirect to login with return URL
+                  window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.href);
+                  return;
+                }
+
+                errorMessage = errorData.message || errorMessage;
+              } catch (jsonError) {
+                // Response body is not valid JSON, use default message
+                console.error('Failed to parse error response:', jsonError);
+              }
+              throw new Error(errorMessage);
+            }
+
+
+            const data = await response.json();
+            console.log('✅ Checkout session created:', data);
+
+            if (data.success && data.checkoutUrl) {
+              // Redirect to Stripe checkout
+              console.log('🚀 Redirecting to Stripe checkout...');
+              window.location.href = data.checkoutUrl;
+            } else {
+              throw new Error(data.message || 'Failed to create checkout session');
+            }
+          } catch (error) {
+            console.error('❌ Subscription purchase error:', error);
+
+            // Don't show alert if we're already redirecting to login
+            if (!error.message.includes('session has expired')) {
+              alert('Failed to start subscription checkout: ' + error.message);
+            }
+
+            // Restore button
+            button.disabled = false;
+            button.innerHTML = originalText;
+          }
+        });
+      });
+
+      // Check and display subscription status on page load
+      async function checkAndDisplaySubscriptionStatus() {
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+        if (!token) {
+          // User not logged in, don't show subscription status
+          return;
+        }
+
+        try {
+          // Get user email from token
+          let userEmail = '';
+          let userId = '';
+          try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            userEmail = payload.email || '';
+            userId = payload.userId || '';
+          } catch (err) {
+            console.error('Error parsing token:', err);
+            return;
+          }
+
+          if (!userEmail) return;
+
+          // Check subscription status
+          const response = await fetch(`${apiBaseUrl}/gift/can-create`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              email: userEmail,
+              userId: userId
+            })
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+
+            // Only show status if user has an active subscription
+            if (data.planStatus === 'active' && data.subscriptionType) {
+              const statusDiv = document.getElementById('current-subscription-status');
+              const infoDiv = document.getElementById('subscription-info');
+
+              const planName = data.planName || (data.subscriptionType === 'monthly' ? 'Monthly Plan' : 'Weekly Plan');
+              const limit = data.limit || (data.subscriptionType === 'weekly' ? 4 : 1);
+              const used = data.used || 0;
+              const remaining = limit - used;
+              const resetDate = data.resetDate ? new Date(data.resetDate).toLocaleDateString() : 'N/A';
+              const expiresDate = data.planExpiresAt ? new Date(data.planExpiresAt).toLocaleDateString() : 'N/A';
+
+              // Calculate progress percentage
+              const progressPercent = (used / limit) * 100;
+
+              infoDiv.innerHTML = `
+              <div style="display: grid; gap: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-weight: 600; color: #1f2937;">Plan:</span>
+                  <span style="color: #4b5563;">${planName}</span>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-weight: 600; color: #1f2937;">Gift Usage:</span>
+                  <span style="color: #4b5563;">${used} of ${limit} used</span>
+                </div>
+                
+                <!-- Progress Bar -->
+                <div style="margin: 8px 0;">
+                  <div style="background: #e5e7eb; border-radius: 9999px; height: 8px; overflow: hidden;">
+                    <div style="background: linear-gradient(to right, #ec4899, #8b5cf6); height: 100%; width: ${progressPercent}%; transition: width 0.3s ease;"></div>
+                  </div>
+                  <p style="font-size: 12px; color: #6b7280; margin-top: 4px;">
+                    ${remaining > 0 ? `${remaining} gift${remaining !== 1 ? 's' : ''} remaining this period` : 'Limit reached - resets soon'}
+                  </p>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-weight: 600; color: #1f2937;">Next Reset:</span>
+                  <span style="color: #4b5563;">${resetDate}</span>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-weight: 600; color: #1f2937;">Plan Expires:</span>
+                  <span style="color: #4b5563;">${expiresDate}</span>
+                </div>
+                
+                ${remaining > 0 ? `
+                <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #d1d5db;">
+                  <a href="giftgenerator.html" style="display: block; text-align: center; background: linear-gradient(to right, #ec4899, #8b5cf6); color: white; padding: 10px 20px; border-radius: 9999px; font-weight: 600; text-decoration: none; transition: transform 0.2s;">
+                    Create Gift Now 🎁
+                  </a>
+                </div>
+                ` : `
+                <div style="margin-top: 12px; padding: 12px; background: #fef3c7; border: 1px solid #fbbf24; border-radius: 8px;">
+                  <p style="font-size: 14px; color: #92400e; margin: 0;">
+                    ⚠️ You've reached your gift limit for this period. Your limit will reset on ${resetDate}.
+                  </p>
+                </div>
+                `}
+              </div>
+            `;
+
+              // Show the status div
+              statusDiv.classList.remove('hidden');
+
+              // Update plan buttons to show "Current Plan" or "Upgrade"
+              const planButtons = document.querySelectorAll('.plan-btn');
+              planButtons.forEach(button => {
+                const buttonPlanId = button.getAttribute('data-plan-id');
+                if (buttonPlanId === data.subscriptionType) {
+                  button.textContent = '✓ Current Plan';
+                  button.style.background = '#10b981';
+                  button.style.cursor = 'default';
+                  button.disabled = true;
+                } else if (buttonPlanId === 'weekly' && data.subscriptionType === 'monthly') {
+                  button.textContent = 'Upgrade to Weekly';
+                }
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error checking subscription status:', error);
+          // Silently fail - don't show error to user
+        }
+      }
+
+      // Check subscription status on page load
+      checkAndDisplaySubscriptionStatus();
+
+      fetch("navbar.html")
+        .then((response) => response.text())
+        .then((data) => {
+          document.getElementById("navbar").innerHTML = data;
+          try { if (window.initNavbar) window.initNavbar(); } catch (e) { console.warn('Navbar init failed:', e); }
+        });
+
+      fetch("footer.html")
+        .then((response) => response.text())
+        .then((data) => {
+          document.getElementById("footer").innerHTML = data;
+        });
+    });
+  </script>
+</body>
+
+</html>

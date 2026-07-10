@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How It Works - WispWish</title>
+  <!-- API Integration -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="js/api.js"></script>
+  <script src="js/main.js"></script>
+  <!-- Chatbot Widget -->
+  <link rel="stylesheet" href="css/chatbot.css">
+  <script src="js/chatbot.js" defer></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to bottom right, #fdf2f8, #f3e8ff, #eef2ff);
+      color: #333;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0 0 15px;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: auto;
+      padding: 40px 20px;
+    }
+
+    .text-center {
+      text-align: center;
+    }
+
+    /* Hero Section */
+    .hero h1 {
+      font-size: 48px;
+      font-weight: bold;
+      background: linear-gradient(to right, #db2777, #7c3aed, #4338ca);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero p {
+      font-size: 20px;
+      color: #555;
+    }
+
+    /* Steps Section */
+    .steps {
+      margin-top: 60px;
+    }
+
+    .step {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 40px;
+      margin-bottom: 100px;
+      opacity: 0;
+      transform: translateY(50px);
+      transition: all 1s ease;
+    }
+
+    .step.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .step:nth-child(even) {
+      flex-direction: row-reverse;
+    }
+
+    .step-content {
+      flex: 1;
+    }
+
+    .step-content h2 {
+      font-size: 28px;
+      color: #111;
+    }
+
+    .step-content p {
+      font-size: 18px;
+      color: #555;
+      margin-bottom: 20px;
+    }
+
+    .step-content ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .step-content li {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 16px;
+      color: #555;
+    }
+
+    .step-content li::before {
+      content: "✔";
+      color: green;
+      margin-right: 8px;
+    }
+
+    .step-visual {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    .circle {
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      font-size: 60px;
+      font-weight: bold;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+      animation: bounce 3s infinite;
+    }
+
+    .circle.pink {
+      background: linear-gradient(to bottom right, #f472b6, #e11d48);
+    }
+
+    .circle.purple {
+      background: linear-gradient(to bottom right, #a78bfa, #ec4899);
+    }
+
+    .circle.indigo {
+      background: linear-gradient(to bottom right, #6366f1, #8b5cf6);
+    }
+
+    .circle.blue {
+      background: linear-gradient(to bottom right, #3b82f6, #4338ca);
+    }
+
+    @keyframes bounce {
+
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-12px);
+      }
+    }
+
+    /* Floating Emojis */
+    .floating {
+      position: absolute;
+      font-size: 30px;
+      background: white;
+      border-radius: 50%;
+      padding: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    }
+
+    .emoji1 {
+      top: -20px;
+      right: -20px;
+      animation: float 4s infinite ease-in-out;
+    }
+
+    .emoji2 {
+      bottom: -30px;
+      left: -30px;
+      animation: float 5s infinite ease-in-out;
+    }
+
+    @keyframes float {
+
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-15px);
+      }
+    }
+
+    /* Features Section */
+    .features {
+      background: rgba(255, 255, 255, 0.6);
+      padding: 60px 20px;
+      margin-top: 80px;
+      border-radius: 20px;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+    }
+
+    .feature {
+      background: white;
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .feature:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .feature-icon {
+      font-size: 36px;
+      margin-bottom: 10px;
+    }
+
+    /* CTA */
+    .cta {
+      background: linear-gradient(to bottom right, #db2777, #7c3aed, #4338ca);
+      padding: 80px 20px;
+      text-align: center;
+      color: white;
+      margin-top: 80px;
+    }
+
+    .cta h2 {
+      font-size: 40px;
+      margin-bottom: 20px;
+    }
+
+    .cta p {
+      font-size: 20px;
+      margin-bottom: 30px;
+    }
+
+    .cta-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+    }
+
+    .btn {
+      padding: 14px 30px;
+      border-radius: 50px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      border: none;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .btn-primary {
+      background: white;
+      color: #7c3aed;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      color: white;
+    }
+
+    .btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+  </style>
+</head>
+
+<body>
+  <div id="navbar"></div>
+
+  <!-- Hero -->
+  <section class="hero container text-center">
+    <h1>How It Works</h1>
+    <p>From heart to gift in just four simple steps</p>
+  </section>
+
+  <!-- Steps -->
+  <section class="steps container">
+    <!-- Step 1 -->
+    <div class="step">
+      <div class="step-content">
+        <h2>Choose an Occasion</h2>
+        <p>Select what brings you here - birthday, love, grief, friendship, or any special moment.</p>
+        <ul>
+          <li>9 different occasions available</li>
+          <li>Custom "other" option</li>
+          <li>Tailored for your specific situation</li>
+        </ul>
+      </div>
+      <div class="step-visual">
+        <div class="circle pink">❤️</div>
+        <div class="floating emoji1">✨</div>
+        <div class="floating emoji2">💝</div>
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="step">
+      <div class="step-content">
+        <h2>Fill Out the Form</h2>
+        <p>Share the details that will make your gift uniquely personal and meaningful.</p>
+        <ul>
+          <li>Recipient name & relationship</li>
+          <li>Choose emotional tone</li>
+          <li>Add memories & inside jokes</li>
+          <li>Optional photo upload</li>
+        </ul>
+      </div>
+      <div class="step-visual">
+        <div class="circle purple">💬</div>
+        <div class="floating emoji1">✨</div>
+        <div class="floating emoji2">💝</div>
+      </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="step">
+      <div class="step-content">
+        <h2>Pick a Gift Type</h2>
+        <p>Select from poems, voice messages, illustrations, videos, songs, or WishKnots.</p>
+        <ul>
+          <li>6+ different formats available</li>
+          <li>Combo packages for full experience</li>
+          <li>Optional add-ons & upgrades</li>
+        </ul>
+      </div>
+      <div class="step-visual">
+        <div class="circle indigo">🎨</div>
+        <div class="floating emoji1">✨</div>
+        <div class="floating emoji2">💝</div>
+      </div>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="step">
+      <div class="step-content">
+        <h2>Get Digital Delivery</h2>
+        <p>Your AI-crafted gift is created and delivered via private link or scheduled email.</p>
+        <ul>
+          <li>Instant digital delivery</li>
+          <li>Private shareable links</li>
+          <li>Scheduled delivery options</li>
+          <li>No shipping required</li>
+        </ul>
+      </div>
+      <div class="step-visual">
+        <div class="circle blue">📧</div>
+        <div class="floating emoji1">✨</div>
+        <div class="floating emoji2">💝</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="features container">
+    <div class="text-center">
+      <h2>Why Choose Wispwish?</h2>
+    </div>
+    <div class="features-grid">
+      <div class="feature">
+        <div class="feature-icon">⚡</div>
+        <h3>Instant Creation</h3>
+        <p>AI-powered gifts created in minutes, not days</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">💝</div>
+        <h3>Deeply Personal</h3>
+        <p>Every gift is crafted from your unique memories and emotions</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🌍</div>
+        <h3>Global Delivery</h3>
+        <p>No borders, no delays, just pure connection</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🎨</div>
+        <h3>Multiple Formats</h3>
+        <p>Poems, voice, art, video, music, or WishKnots</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">💰</div>
+        <h3>Affordable Magic</h3>
+        <p>Starting at just $8 AUD, with combos available</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🔒</div>
+        <h3>Private & Secure</h3>
+        <p>Your stories and gifts are protected with enterprise-grade security</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- {/* Pay What You Want Feature */} -->
+  <div class="mt-12 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-8 border border-purple-200">
+    <div class="text-center">
+      <div class="flex items-center justify-center mb-4">
+        <svg class="h-8 w-8 text-purple-500 mr-3" fill="currentColor" viewBox="0 0 24 24">
+          <path
+            d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+        </svg>
+        <h3 class="text-2xl font-bold text-gray-800">Pay What You Want</h3>
+      </div>
+      <p class="text-lg text-gray-600 mb-6 max-w-2xl mx-auto">
+        For apology and grief gifts, we believe everyone deserves emotional support regardless of financial
+        circumstances.
+        Choose your own price starting at just $5.
+      </p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
+        <div class="bg-white rounded-xl p-4 shadow-sm">
+          <div class="text-2xl mb-2">🕊️</div>
+          <h4 class="font-semibold text-gray-800 mb-1">Grief Support</h4>
+          <p class="text-sm text-gray-600">Healing shouldn't have a price tag</p>
+        </div>
+        <div class="bg-white rounded-xl p-4 shadow-sm">
+          <div class="text-2xl mb-2">💔</div>
+          <h4 class="font-semibold text-gray-800 mb-1">Apology & Closure</h4>
+          <p class="text-sm text-gray-600">Making amends should be accessible to all</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CTA -->
+  <section class="cta">
+    <h2>Ready to Create Your Gift?</h2>
+    <p>It only takes a few minutes to create something that will be treasured forever</p>
+    <div class="cta-buttons">
+      <a href="/giftgenerator.html">
+        <button class="btn btn-primary">Create My Gift ➡</button>
+      </a>
+      <!-- <a href="gallery.html">
+        <button class="btn btn-secondary">See Examples 🎨</button>
+      </a> -->
+    </div>
+  </section>
+
+  <div id="footer"></div>
+
+  <script src="js/navbar.js"></script>
+  <script>
+    fetch("navbar.html")
+      .then((response) => response.text())
+      .then((data) => {
+        document.getElementById("navbar").innerHTML = data;
+        try { if (window.initNavbar) window.initNavbar(); } catch (e) { console.warn('Navbar init failed:', e); }
+      });
+
+    fetch("footer.html")
+      .then((response) => response.text())
+      .then((data) => {
+        document.getElementById("footer").innerHTML = data;
+      });
+    // Animation on scroll for steps
+    const steps = document.querySelectorAll(".step");
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("visible");
+        }
+      });
+    }, { threshold: 0.2 });
+    steps.forEach(step => observer.observe(step));
+  </script>
+</body>
+
+</html>

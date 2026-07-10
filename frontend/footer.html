@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>footer</title>
+    <style>
+        /* footer */
+
+     footer {
+      background: #111827; /* gray-900 */
+      color: white;
+      padding: 60px 20px;
+    }
+
+    .footer-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 40px;
+    }
+
+    .footer-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .footer-logo span {
+      font-size: 24px;
+      font-weight: bold;
+      background: linear-gradient(to right, #ec4899, #a78bfa);
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+
+    .footer p {
+      color: #9ca3af; /* gray-400 */
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 16px;
+      padding: 5px 100px;
+    }
+
+    .footer-logo-p {
+      padding-right: 20px;
+      padding-left: 10px;
+    }
+
+    .footer-section h3 {
+      font-weight: 600;
+      font-size: 16px;
+      margin-bottom: 16px;
+      color: #e5e7eb; /* gray-200 */
+    }
+
+    .footer-section ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .footer-section ul li {
+      margin-bottom: 10px;
+    }
+    .footer-section a {
+      text-decoration: none;
+      font-size: 14px;
+      color: #9ca3af;
+      transition: color 0.2s;
+    }
+    .footer-section a:hover {
+      color: #ec4899; /* pink-400 */
+    }
+
+    .footer-bottom {
+      border-top: 1px solid #1f2937; /* gray-800 */
+      margin-top: 40px;
+      padding-top: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      color: #9ca3af;
+    }
+    .footer-bottom-links {
+      display: flex;
+      gap: 20px;
+    }
+    .footer-bottom-links a {
+      color: #9ca3af;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .footer-bottom-links a:hover {
+      color: #ec4899;
+    }
+
+    @media (min-width: 768px) {
+      .footer-container {
+        grid-template-columns: repeat(4, 1fr);
+      }
+      .footer-bottom {
+        flex-direction: row;
+        justify-content: space-between;
+      }
+    }
+
+    </style>
+</head>
+<body>
+      <footer>
+    <div class="footer-container">
+      <!-- Logo & Description -->
+      <div>
+        <div class="footer-logo">
+          <span>❤️</span>
+          <span>Wispwish</span>
+        </div>
+        <p class="footer-logo-p">
+          AI-powered emotional gifts that carry your feelings across any distance.
+          From heart to gift in seconds.
+        </p>
+      </div>
+
+      <!-- Quick Links -->
+      <div class="footer-section">
+        <h3>Quick Links</h3>
+        <ul>
+          <li><a href="/">Home</a></li>
+          <li><a href="/giftgenerator.html">Create Gift</a></li>
+          <li><a href="/wisknot.html">WishKnot</a></li>
+          <!-- <li><a href="#">Gallery</a></li> -->
+          <li><a href="/pricing.html">Pricing</a></li>
+          <li><a href="/login.html">Admin Login</a></li>
+        </ul>
+      </div>
+
+      <!-- Support -->
+      <div class="footer-section">
+        <h3>Support</h3>
+        <ul>
+          <li><a href="/how-it-works.html">How It Works</a></li>
+          <li><a href="/faq.html">❓ FAQ</a></li>
+          <li><a href="/contact.html">✉️ Contact Us</a></li>
+          <li><a href="/privacy-policy.html">🛡 Privacy Policy</a></li>
+        </ul>
+      </div>
+
+      <!-- Contact Info -->
+      <div class="footer-section">
+        <h3>Get in Touch</h3>
+        <p>✉️ 1wispwish@gmail.com</p>
+        <p>Available 24/7 for digital gift creation</p>
+        <p>🌍 Worldwide instant delivery</p>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <div>© 2025 Wispwish. All rights reserved. Made with ❤️ for meaningful connections.</div>
+      <div class="footer-bottom-links">
+        <a href="/privacy-policy.html">Terms</a>
+        <a href="/privacy-policy.html">Privacy</a>
+        <a href="/faq.html">Refund Policy</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

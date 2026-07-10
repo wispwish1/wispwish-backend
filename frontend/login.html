@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Login or Register to Wispwish to create AI-generated digital gifts">
+    <title>Wispwish - Login & Registration</title>
+
+    <style>
+        /* 👉 Define root variables to match website theme */
+        :root {
+            --primary: #7B5AFF;
+            --primary-dark: #6343F5;
+            --primary-light: #F0E9FF;
+            --secondary: #FF85A2;
+            --dark: #1A1A2E;
+            --light: #F8F9FF;
+            --gray: #E5E7EB;
+            --dark-gray: #6B7280;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            --font-primary: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --border-radius: 12px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-primary);
+            /* 👉 Updated to light theme gradient */
+            background: linear-gradient(135deg, var(--light) 0%, var(--primary-light) 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .auth-container {
+            /* 👉 Updated background to match light theme */
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-lg);
+            width: 100%;
+            max-width: 400px;
+            padding: 40px 30px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .auth-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            /* 👉 Updated to use primary and secondary colors */
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            /* 👉 Updated to dark color */
+            color: var(--dark);
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .logo p {
+            /* 👉 Updated to dark-gray */
+            color: var(--dark-gray);
+            font-size: 14px;
+            font-style: italic;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: var(--gray);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            font-size: 18px;
+            color: var(--dark-gray);
+            text-decoration: none;
+            z-index: 10;
+        }
+
+        .close-btn:hover {
+            background: var(--primary-light);
+            color: var(--primary);
+            transform: scale(1.1);
+        }
+
+        .logo a {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .logo a:hover h1 {
+            color: var(--primary);
+        }
+
+        .form-toggle {
+            /* 👉 Updated to light gray background */
+            display: flex;
+            background: var(--gray);
+            border-radius: 50px;
+            padding: 4px;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .toggle-btn {
+            flex: 1;
+            padding: 12px 0;
+            text-align: center;
+            background: none;
+            border: none;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+            z-index: 2;
+        }
+
+        .toggle-btn.active {
+            color: white;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: calc(50% - 4px);
+            height: calc(100% - 8px);
+            /* 👉 Updated to use primary and secondary gradient */
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 50px;
+            transition: transform 0.3s ease;
+            z-index: 1;
+        }
+
+        .toggle-slider.register {
+            transform: translateX(100%);
+        }
+
+        .form-container {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .form {
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+
+        .form.hidden {
+            transform: translateX(-100%);
+            opacity: 0;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            /* 👉 Updated to dark color */
+            color: var(--dark);
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 15px;
+            /* 👉 Updated border to gray */
+            border: 2px solid var(--gray);
+            border-radius: var(--border-radius);
+            font-size: 14px;
+            transition: var(--transition);
+            background: white;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            /* 👉 Updated focus border to primary */
+            border-color: var(--primary);
+            /* 👉 Updated focus shadow */
+            box-shadow: 0 0 0 3px rgba(123, 90, 255, 0.1);
+        }
+
+        .role-select {
+            position: relative;
+        }
+
+        .role-select select {
+            appearance: none;
+            /* 👉 Updated dropdown arrow color */
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 12px center;
+            background-repeat: no-repeat;
+            background-size: 16px;
+            padding-right: 40px;
+        }
+
+        .role-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 5px;
+            padding: 8px 12px;
+            /* 👉 Updated to primary-light background */
+            background: var(--primary-light);
+            border-radius: 8px;
+            font-size: 12px;
+            /* 👉 Updated to dark-gray */
+            color: var(--dark-gray);
+        }
+
+        .role-icon {
+            width: 16px;
+            height: 16px;
+        }
+
+        .password-group {
+            position: relative;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            /* 👉 Updated to dark-gray */
+            color: var(--dark-gray);
+            font-size: 18px;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 15px;
+            /* 👉 Updated to primary/secondary gradient */
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-top: 10px;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            /* 👉 Updated shadow to use primary color */
+            box-shadow: 0 8px 25px rgba(123, 90, 255, 0.3);
+        }
+
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+
+        .divider {
+            text-align: center;
+            margin: 25px 0;
+            position: relative;
+            /* 👉 Updated to dark-gray */
+            color: var(--dark-gray);
+            font-size: 14px;
+        }
+
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            /* 👉 Updated to gray */
+            background: var(--gray);
+            z-index: 1;
+        }
+
+        .divider span {
+            background: white;
+            padding: 0 15px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .social-btns {
+            display: flex;
+            gap: 10px;
+        }
+
+        .social-btn {
+            flex: 1;
+            padding: 12px;
+            /* 👉 Updated border to gray */
+            border: 2px solid var(--gray);
+            border-radius: var(--border-radius);
+            background: white;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .social-btn:hover {
+            /* 👉 Updated hover border to primary */
+            border-color: var(--primary);
+            transform: translateY(-1px);
+        }
+
+        .forgot-password {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .forgot-password a {
+            /* 👉 Updated to primary color */
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .forgot-password a:hover {
+            text-decoration: underline;
+        }
+
+        .success-message {
+            /* 👉 Updated to success color */
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .error-message {
+            /* 👉 Updated to danger color */
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+
+        @media (max-width: 480px) {
+            .auth-container {
+                padding: 30px 20px;
+                margin: 10px;
+            }
+
+            .logo h1 {
+                font-size: 24px;
+            }
+
+            .social-btns {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="auth-container">
+        <a href="/" class="close-btn" title="Go to Home">✕</a>
+        <div class="logo">
+            <a href="/">
+                <h1>Wispwish</h1>
+            </a>
+            <p>Gifts born from the heart, delivered in seconds</p>
+        </div>
+
+        <div class="form-toggle">
+            <button class="toggle-btn active" id="loginToggle">Login</button>
+            <button class="toggle-btn" id="registerToggle">Register</button>
+            <div class="toggle-slider" id="toggleSlider"></div>
+        </div>
+
+        <div class="success-message" id="successMessage"></div>
+        <div class="error-message" id="errorMessage"></div>
+
+        <div class="form-container">
+            <!-- Login Form -->
+            <form class="form" id="loginForm">
+                <div class="form-group">
+                    <label for="loginEmail">Email Address</label>
+                    <input type="email" id="loginEmail" name="email" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <div class="password-group">
+                        <input type="password" id="loginPassword" name="password" required>
+                        <button type="button" class="password-toggle"
+                            onclick="togglePassword('loginPassword')">👁</button>
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn">Sign In</button>
+
+                <div class="forgot-password">
+                    <a href="#" onclick="showForgotPassword()">Forgot your password?</a>
+                </div>
+            </form>
+
+            <!-- Register Form -->
+            <form class="form hidden" id="registerForm">
+                <div class="form-group">
+                    <label for="registerName">Full Name</label>
+                    <input type="text" id="registerName" name="name" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="registerEmail">Email Address</label>
+                    <input type="email" id="registerEmail" name="email" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="userRole">Account Type</label>
+                    <div class="role-select">
+                        <select id="userRole" name="role" required onchange="showRoleInfo()">
+                            <option value="">Select your role</option>
+                            <option value="customer">Customer - Send & receive gifts</option>
+                            <option value="creator">Creator - Create custom content</option>
+                            <option value="business">Business - Corporate gifting</option>
+                            <!-- <option value="admin">Admin - Platform management</option> -->
+                        </select>
+                    </div>
+                    <div class="role-info" id="roleInfo" style="display: none;">
+                        <span class="role-icon" id="roleIcon">👤</span>
+                        <span id="roleDescription">Choose your account type to get started</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="registerPassword">Password</label>
+                    <div class="password-group">
+                        <input type="password" id="registerPassword" name="password" required minlength="8">
+                        <button type="button" class="password-toggle"
+                            onclick="togglePassword('registerPassword')">👁</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <div class="password-group">
+                        <input type="password" id="confirmPassword" name="confirmPassword" required>
+                        <button type="button" class="password-toggle"
+                            onclick="togglePassword('confirmPassword')">👁</button>
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn">Create Account</button>
+            </form>
+        </div>
+
+        <!-- <div class="divider">
+            <span>or continue with</span>
+        </div>
+
+        <div class="social-btns">
+            <button class="social-btn" onclick="socialLogin('google')">
+                <span>🔍</span> Google
+            </button>
+            <button class="social-btn" onclick="socialLogin('facebook')">
+                <span>📘</span> Facebook
+            </button>
+        </div> -->
+    </div>
+
+    <script src="js/config.js"></script>
+    <script>
+        // Base URL for API calls (now centralized in CONFIG)
+        // const API_BASE_URL = CONFIG.API_BASE_URL;
+        const API_BASE_URL = 'https://wispwish-backend.vercel.app/api';
+        // const API_BASE_URL = 'https://wispwish-backen    d-production.up.railway.app';
+
+        // Form Toggle Functionality
+        const loginToggle = document.getElementById('loginToggle');
+        const registerToggle = document.getElementById('registerToggle');
+        const toggleSlider = document.getElementById('toggleSlider');
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+
+        loginToggle.addEventListener('click', () => {
+            showLogin();
+        });
+
+        registerToggle.addEventListener('click', () => {
+            showRegister();
+        });
+
+        function showLogin() {
+            loginToggle.classList.add('active');
+            registerToggle.classList.remove('active');
+            toggleSlider.classList.remove('register');
+            loginForm.classList.remove('hidden');
+            registerForm.classList.add('hidden');
+            clearMessages();
+        }
+
+        function showRegister() {
+            registerToggle.classList.add('active');
+            loginToggle.classList.remove('active');
+            toggleSlider.classList.add('register');
+            registerForm.classList.remove('hidden');
+            loginForm.classList.add('hidden');
+            clearMessages();
+        }
+
+        // Password Toggle
+        function togglePassword(inputId) {
+            const input = document.getElementById(inputId);
+            const button = input.nextElementSibling;
+
+            if (input.type === 'password') {
+                input.type = 'text';
+                button.textContent = '🙈';
+            } else {
+                input.type = 'password';
+                button.textContent = '👁';
+            }
+        }
+
+        // Role Information Display
+        function showRoleInfo() {
+            const roleSelect = document.getElementById('userRole');
+            const roleInfo = document.getElementById('roleInfo');
+            const roleIcon = document.getElementById('roleIcon');
+            const roleDescription = document.getElementById('roleDescription');
+
+            const roleData = {
+                // customer: {
+                //     icon: '🎁',
+                //     description: 'Send personalized AI gifts to loved ones'
+                // },
+                // creator: {
+                //     icon: '🎨',
+                //     description: 'Create and customize content for the platform'
+                // },
+                // business: {
+                //     icon: '🏢',
+                //     description: 'Manage corporate gifting and team accounts'
+                // },
+                admin: {
+                    icon: '⚙️',
+                    description: 'Full platform access and management tools'
+                }
+            };
+
+            if (roleSelect.value && roleData[roleSelect.value]) {
+                const role = roleData[roleSelect.value];
+                roleIcon.textContent = role.icon;
+                roleDescription.textContent = role.description;
+                roleInfo.style.display = 'flex';
+            } else {
+                roleInfo.style.display = 'none';
+            }
+        }
+
+        // Form Submissions
+        document.getElementById('loginForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            await handleLogin();
+        });
+
+        document.getElementById('registerForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            await handleRegister();
+        });
+
+        async function handleLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                console.log('Attempting login to:', `${API_BASE_URL}/auth/login`);
+                const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password }),
+                });
+
+                const data = await response.json();
+                console.log('Login response:', data);
+
+                if (data.success) {
+                    // Persist auth data to both storage buckets so every page (navbar/pricing/etc.) can read it.
+                    const userDetails = data.user || {};
+                    [localStorage, sessionStorage].forEach(store => {
+                        try {
+                            store.setItem('token', data.token);
+                            if (userDetails.email) store.setItem('userEmail', userDetails.email);
+                            if (userDetails.name) store.setItem('userName', userDetails.name);
+                            if (userDetails.id || userDetails._id) store.setItem('userId', userDetails.id || userDetails._id);
+                        } catch (storageError) {
+                            console.warn('Storage error', storageError);
+                        }
+                    });
+
+                    showSuccess(data.message);
+
+                    // Check user's role (assuming it's returned in `data.user.role`)
+                    const userRole = data.user?.role;
+
+                    let redirectUrl;
+
+                    if (userRole === 'admin') {
+                        redirectUrl = 'admin-portal/index.html';
+                    } else {
+                        redirectUrl = '/';
+                    }
+
+                    console.log('Redirecting to:', redirectUrl);
+                    setTimeout(() => {
+                        window.location.href = redirectUrl;
+                    }, 1500);
+                } else {
+                    showError(data.message);
+                }
+            } catch (error) {
+                showError('An error occurred. Please try again.');
+                console.error('Login error:', error);
+            }
+        }
+
+        async function handleRegister() {
+            const name = document.getElementById('registerName').value.trim();
+            const email = document.getElementById('registerEmail').value.trim();
+            const role = document.getElementById('userRole').value || 'customer';
+            const password = document.getElementById('registerPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (!name || !email || !password || !confirmPassword) {
+                showError('Please fill in all required fields');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                showError('Passwords do not match');
+                return;
+            }
+
+            if (password.length < 8) {
+                showError('Password must be at least 8 characters long');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, role, password, confirmPassword }),
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    showError(data.message || 'Registration failed');
+                    return;
+                }
+
+                [localStorage, sessionStorage].forEach(store => {
+                    try {
+                        store.setItem('token', data.token);
+                        store.setItem('userEmail', data.user.email);
+                        store.setItem('userName', data.user.name);
+                        store.setItem('userId', data.user.id || data.user._id);
+                    } catch { }
+                });
+
+                showSuccess(data.message || 'Registration successful');
+                setTimeout(() => (window.location.href = '/'), 1500);
+            } catch (error) {
+                console.error('Registration error:', error);
+                showError('An error occurred. Please try again.');
+            }
+        }
+
+        function handleLogout() {
+            ['localStorage', 'sessionStorage'].forEach(storeName => {
+                const store = window[storeName];
+                if (!store) return;
+                store.removeItem('token');
+                store.removeItem('userEmail');
+                store.removeItem('userName');
+                store.removeItem('userId');
+            });
+            window.location.href = 'login.html';
+        }
+
+        // async function handleRegister() {
+        //     const name = document.getElementById('registerName').value;
+        //     const email = document.getElementById('registerEmail').value;
+        //     const role = document.getElementById('userRole').value;
+        //     const password = document.getElementById('registerPassword').value;
+        //     const confirmPassword = document.getElementById('confirmPassword').value;
+
+        //     if (!name || !email || !role || !password || !confirmPassword) {
+        //         showError('Please fill in all fields');
+        //         return;
+        //     }
+
+        //     if (password !== confirmPassword) {
+        //         showError('Passwords do not match');
+        //         return;
+        //     }
+
+        //     if (password.length < 8) {
+        //         showError('Password must be at least 8 characters long');
+        //         return;
+        //     }
+
+        //     try {
+        //         console.log('Attempting register to:', `${API_BASE_URL}/api/auth/register`);
+        //         const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+        //             method: 'POST',
+        //             headers: {
+        //                 'Content-Type': 'application/json',
+        //             },
+        //             body: JSON.stringify({ name, email, role, password, confirmPassword }),
+        //         });
+
+        //         const data = await response.json();
+        //         console.log('Register response:', data);
+
+        //         if (data.success) {
+        //             localStorage.setItem('token', data.token) || sessionStorage.setItem('token', data.token);
+        //             showSuccess(data.message);
+
+        //             const urlParams = new URLSearchParams(window.location.search);
+        //             let redirectUrl = urlParams.get('redirect') || '/generator.html';
+
+        //             if (redirectUrl.startsWith('http')) {
+        //                 try {
+        //                     redirectUrl = new URL(redirectUrl).pathname;
+        //                 } catch (e) {
+        //                     console.error('Invalid redirect URL:', redirectUrl);
+        //                     redirectUrl = '/generator.html';
+        //                 }
+        //             }
+
+        //             console.log('Redirecting to:', redirectUrl);
+        //             setTimeout(() => {
+        //                 window.location.href = redirectUrl;
+        //             }, 1500);
+        //         } else {
+        //             showError(data.message);
+        //         }
+        //     } catch (error) {
+        //         showError('An error occurred. Please try again.');
+        //         console.error('Register error:', error);
+        //     }
+        // }
+
+        function socialLogin(provider) {
+            console.log('Initiating social login with:', provider);
+            window.location.href = `${API_BASE_URL}/api/auth/${provider}`;
+        }
+
+        async function showForgotPassword() {
+            const email = prompt('Enter your email address:');
+            if (email) {
+                try {
+                    console.log('Attempting forgot password to:', `${API_BASE_URL}/api/forgot-password`);
+                    const response = await fetch(`${API_BASE_URL}/api/forgot-password`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ email }),
+                    });
+
+                    const data = await response.json();
+                    console.log('Forgot password response:', data);
+                    if (data.success) {
+                        showSuccess(data.message);
+                    } else {
+                        showError(data.message);
+                    }
+                } catch (error) {
+                    showError('An error occurred. Please try again.');
+                    console.error('Forgot password error:', error);
+                }
+            }
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('successMessage');
+            const errorDiv = document.getElementById('errorMessage');
+
+            errorDiv.style.display = 'none';
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+
+            setTimeout(() => {
+                successDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function showError(message) {
+            const successDiv = document.getElementById('successMessage');
+            const errorDiv = document.getElementById('errorMessage');
+
+            successDiv.style.display = 'none';
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function clearMessages() {
+            document.getElementById('successMessage').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            showLogin();
+            console.log('Current origin:', window.location.origin);
+        });
+    </script>
+</body>
+
+</html>

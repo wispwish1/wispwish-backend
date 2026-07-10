@@ -1488,31 +1488,12 @@ Narration: one short spoken line under 18 words.`
 
   try {
     if (prompt) {
-      // Single OpenAI call
-      const textResponse = await axios.post(
-        'https://api.openai.com/v1/chat/completions',
-        {
-          model: 'gpt-4o-mini',
-          messages: [{
-            role: 'user',
-            content: prompt,
-          }],
-          max_tokens: giftType === 'voice' ? 150 : 500,
-          temperature: 0.7,
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      textContent = textResponse.data.choices?.[0]?.message?.content || 'No response';
+      textContent = await callOpenAIChat({
+        messages: [{ role: 'user', content: prompt }],
+        maxTokens: 500,
+        temperature: 0.7,
+      });
       console.log('ChatGPT generated text:', textContent);
-      
-      // Track OpenAI usage
-      await apiTracker.trackAPIUsage('openai', 1, textContent.length);
     }
 
     if (giftType === 'voice') {
