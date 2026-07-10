@@ -259,6 +259,71 @@ router.post('/generate', optionalAuth, checkSubscriptionLimit, async (req, res) 
       };
 
       console.log('✅ Full Experience gift generated with all components');
+    } else if (giftType === 'voice-poem') {
+      // Generate poem + voice together (not premium bundle - just text + audio)
+      const [poemResult, voiceResult] = await Promise.all([
+        aiService.generateContent({
+          giftType: 'poem',
+          recipientName,
+          tone,
+          memories: memories || [],
+          relationship,
+          occasion,
+          language,
+          senderMessage,
+          senderName,
+          personalityTraits,
+          handwritingStyle,
+          voiceStyle,
+          length,
+          poemLength,
+          includePremiumBundle: false,
+          regenerateOptions,
+          isRegenerate
+        }),
+        aiService.generateContent({
+          giftType: 'voice',
+          recipientName,
+          tone,
+          memories: memories || [],
+          relationship,
+          occasion,
+          language,
+          senderMessage,
+          senderName,
+          personalityTraits,
+          handwritingStyle,
+          voiceStyle,
+          voiceGender,
+          length,
+          poemLength,
+          voiceStyleId,
+          regenerateOptions,
+          isRegenerate
+        })
+      ]);
+
+      generatedContent = {
+        type: 'voice-poem',
+        isVoicePoem: true,
+        poem: poemResult,
+        voice: voiceResult,
+        text: poemResult?.text || poemResult,
+        audioUrl: voiceResult?.audioUrl || null,
+        audio: voiceResult?.audio || null,
+        voiceMessage: voiceResult ? {
+          script: voiceResult.text || voiceResult.script || '',
+          audioUrl: voiceResult.audioUrl || null,
+          voiceStyle: voiceResult.voiceStyle || voiceStyle || '',
+          voiceStyleLabel: voiceResult.voiceStyleLabel || '',
+          voiceGender: voiceResult.voiceGender || voiceGender || '',
+          duration: voiceResult.duration || null
+        } : null,
+        script: voiceResult?.text || voiceResult?.script || poemResult?.text || '',
+        voiceStyle: voiceResult?.voiceStyle || voiceStyle || '',
+        voiceStyleLabel: voiceResult?.voiceStyleLabel || '',
+        voiceGender: voiceResult?.voiceGender || voiceGender || ''
+      };
     } else {
       // Generate content using AI service for single gift types
       generatedContent = await aiService.generateContent({
@@ -832,72 +897,7 @@ router.post('/update-payment/:orderId', async (req, res) => {
                 gift.deliveryStatus = 'delivered';
                 gift.deliveredAt = new Date();
                 await gift.save();
-    } else if (giftType === 'voice-poem') {
-      // Generate poem + voice together (not premium bundle - just text + audio)
-      const [poemResult, voiceResult] = await Promise.all([
-        aiService.generateContent({
-          giftType: 'poem',
-          recipientName,
-          tone,
-          memories: memories || [],
-          relationship,
-          occasion,
-          language,
-          senderMessage,
-          senderName,
-          personalityTraits,
-          handwritingStyle,
-          voiceStyle,
-          length,
-          poemLength,
-          includePremiumBundle: false,
-          regenerateOptions,
-          isRegenerate
-        }),
-        aiService.generateContent({
-          giftType: 'voice',
-          recipientName,
-          tone,
-          memories: memories || [],
-          relationship,
-          occasion,
-          language,
-          senderMessage,
-          senderName,
-          personalityTraits,
-          handwritingStyle,
-          voiceStyle,
-          voiceGender,
-          length,
-          poemLength,
-          voiceStyleId,
-          regenerateOptions,
-          isRegenerate
-        })
-      ]);
-
-      generatedContent = {
-        type: 'voice-poem',
-        isVoicePoem: true,
-        poem: poemResult,
-        voice: voiceResult,
-        text: poemResult?.text || poemResult,
-        audioUrl: voiceResult?.audioUrl || null,
-        audio: voiceResult?.audio || null,
-        voiceMessage: voiceResult ? {
-          script: voiceResult.text || voiceResult.script || '',
-          audioUrl: voiceResult.audioUrl || null,
-          voiceStyle: voiceResult.voiceStyle || voiceStyle || '',
-          voiceStyleLabel: voiceResult.voiceStyleLabel || '',
-          voiceGender: voiceResult.voiceGender || voiceGender || '',
-          duration: voiceResult.duration || null
-        } : null,
-        script: voiceResult?.text || voiceResult?.script || poemResult?.text || '',
-        voiceStyle: voiceResult?.voiceStyle || voiceStyle || '',
-        voiceStyleLabel: voiceResult?.voiceStyleLabel || '',
-        voiceGender: voiceResult?.voiceGender || voiceGender || ''
-      };
-    } else {
+              } else {
                 console.error('Failed to send WishKnot email after payment:', wishKnotEmailResult.error);
                 gift.deliveryStatus = 'failed';
                 await gift.save();
