@@ -4,7 +4,7 @@ const giftSchema = new mongoose.Schema({
   giftType: {
     type: String,
     required: true,
-    enum: ['poem', 'letter', 'shortStory', 'wishknot', 'voice', 'image', 'song', 'illustration', 'video', 'combo'], // Added 'combo' to the enum
+    enum: ['voice-poem', 'poem', 'letter', 'shortStory', 'wishknot', 'voice', 'image', 'song', 'illustration', 'video', 'combo'],
   },
   senderName: {
     type: String,

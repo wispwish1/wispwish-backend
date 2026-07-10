@@ -832,7 +832,72 @@ router.post('/update-payment/:orderId', async (req, res) => {
                 gift.deliveryStatus = 'delivered';
                 gift.deliveredAt = new Date();
                 await gift.save();
-              } else {
+    } else if (giftType === 'voice-poem') {
+      // Generate poem + voice together (not premium bundle - just text + audio)
+      const [poemResult, voiceResult] = await Promise.all([
+        aiService.generateContent({
+          giftType: 'poem',
+          recipientName,
+          tone,
+          memories: memories || [],
+          relationship,
+          occasion,
+          language,
+          senderMessage,
+          senderName,
+          personalityTraits,
+          handwritingStyle,
+          voiceStyle,
+          length,
+          poemLength,
+          includePremiumBundle: false,
+          regenerateOptions,
+          isRegenerate
+        }),
+        aiService.generateContent({
+          giftType: 'voice',
+          recipientName,
+          tone,
+          memories: memories || [],
+          relationship,
+          occasion,
+          language,
+          senderMessage,
+          senderName,
+          personalityTraits,
+          handwritingStyle,
+          voiceStyle,
+          voiceGender,
+          length,
+          poemLength,
+          voiceStyleId,
+          regenerateOptions,
+          isRegenerate
+        })
+      ]);
+
+      generatedContent = {
+        type: 'voice-poem',
+        isVoicePoem: true,
+        poem: poemResult,
+        voice: voiceResult,
+        text: poemResult?.text || poemResult,
+        audioUrl: voiceResult?.audioUrl || null,
+        audio: voiceResult?.audio || null,
+        voiceMessage: voiceResult ? {
+          script: voiceResult.text || voiceResult.script || '',
+          audioUrl: voiceResult.audioUrl || null,
+          voiceStyle: voiceResult.voiceStyle || voiceStyle || '',
+          voiceStyleLabel: voiceResult.voiceStyleLabel || '',
+          voiceGender: voiceResult.voiceGender || voiceGender || '',
+          duration: voiceResult.duration || null
+        } : null,
+        script: voiceResult?.text || voiceResult?.script || poemResult?.text || '',
+        voiceStyle: voiceResult?.voiceStyle || voiceStyle || '',
+        voiceStyleLabel: voiceResult?.voiceStyleLabel || '',
+        voiceGender: voiceResult?.voiceGender || voiceGender || ''
+      };
+    } else {
                 console.error('Failed to send WishKnot email after payment:', wishKnotEmailResult.error);
                 gift.deliveryStatus = 'failed';
                 await gift.save();
@@ -916,6 +981,7 @@ router.get('/runway-status', async (req, res) => {
 // Helper function to determine gift price
 function getPrice(giftType) {
   switch (giftType) {
+    case 'voice-poem': return 10;
     case 'voice': return 10;
     case 'song': return 10;
     case 'image': return 10;

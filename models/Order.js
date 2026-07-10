@@ -7,7 +7,7 @@ const OrderSchema = new mongoose.Schema({
   type: { 
     type: String, 
     required: true, 
-    enum: ['poem', 'voice', 'illustration', 'video', 'image', 'song', 'wishknot', 'letter', 'shortStory', 'combo', 'subscription'] 
+    enum: ['voice-poem', 'poem', 'voice', 'illustration', 'video', 'image', 'song', 'wishknot', 'letter', 'shortStory', 'combo', 'subscription'] 
   },
   planName: { type: String },
   planFrequency: { type: String },

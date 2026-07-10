@@ -14,7 +14,8 @@ function getPrice(giftType) {
     'image': 10,
     'illustration': 10,
     'poem': 10,
-    'voice': 10
+    'voice': 10,
+    'voice-poem': 10
   };
   return prices[giftType] || 8;
 }

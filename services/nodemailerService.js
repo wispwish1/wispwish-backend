@@ -1043,9 +1043,10 @@ const sendGiftEmail = async (gift) => {
                 }
                 break;
                 
+            case 'voice-poem':
             case 'voice':
             case 'song':
-                console.log('🎤 Processing VOICE/SONG gift type');
+                console.log('🎤 Processing VOICE-POEM/VOICE/SONG gift type (first occurrence)');
                 
                 let audioBuffer;
                 if (Buffer.isBuffer(audioContent)) {
@@ -1191,9 +1192,10 @@ const sendGiftEmail = async (gift) => {
                 `;
                 break;
                 
+            case 'voice-poem':
             case 'voice':
             case 'song':
-                console.log('🎤 Processing VOICE/SONG gift type');
+                console.log('🎤 Processing VOICE-POEM/VOICE/SONG gift type');
                 
                 // let audioBuffer;
                 if (Buffer.isBuffer(audioContent)) {
