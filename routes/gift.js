@@ -619,36 +619,38 @@ router.post('/generate', optionalAuth, checkSubscriptionLimit, async (req, res) 
       }
     }
 
-    // Send order confirmation email to BUYER
-    try {
-      if (userEmail && userEmail !== 'guest@example.com') {
-        console.log('Sending confirmation email to buyer:', userEmail);
-        const emailResult = await nodemailerService.sendOrderConfirmation(userEmail, {
-          orderId: order._id.toString().slice(-6),
-          giftType,
-          recipientName,
-          recipientEmail: deliveryEmail,
-          price: effectivePrice,
-          generatedContent: formattedContent,
-          audioContent: formattedContent?.voiceMessage?.audioUrl || formattedContent?.audioUrl || formattedContent?.components?.voice?.audioUrl || null,
-          buyerName: userName,
-          giftId: giftDoc._id,
-          isSubscriptionGift: subscriptionCoversGift,
-          planName: linkedSubscription?.planName || null,
-          planExpiresAt: linkedPlanDates?.expiresAt || linkedSubscription?.planExpiresAt || null
-        });
+    // Send gift creation notification to BUYER (not a payment confirmation!)
+    // Only send if subscription covers the gift (payment already handled)
+    if (subscriptionCoversGift) {
+      try {
+        if (userEmail && userEmail !== 'guest@example.com') {
+          console.log('Sending subscription gift notification to buyer:', userEmail);
+          const emailResult = await nodemailerService.sendOrderConfirmation(userEmail, {
+            orderId: order._id.toString().slice(-6),
+            giftType,
+            recipientName,
+            recipientEmail: deliveryEmail,
+            price: effectivePrice,
+            generatedContent: formattedContent,
+            audioContent: formattedContent?.voiceMessage?.audioUrl || formattedContent?.audioUrl || formattedContent?.components?.voice?.audioUrl || null,
+            buyerName: userName,
+            giftId: giftDoc._id,
+            isSubscriptionGift: true,
+            planName: linkedSubscription?.planName || null,
+            planExpiresAt: linkedPlanDates?.expiresAt || linkedSubscription?.planExpiresAt || null
+          });
 
-        if (emailResult.success) {
-          console.log('Order confirmation email sent to buyer successfully:', emailResult.messageId);
-        } else {
-          console.error('Failed to send order confirmation email to buyer:', emailResult.error);
+          if (emailResult.success) {
+            console.log('Gift notification sent to subscriber successfully:', emailResult.messageId);
+          } else {
+            console.error('Failed to send gift notification to subscriber:', emailResult.error);
+          }
         }
-      } else {
-        console.log('No valid buyer email available for confirmation');
+      } catch (emailError) {
+        console.error('Error sending subscription gift notification:', emailError);
       }
-    } catch (emailError) {
-      console.error('Error sending order confirmation to buyer:', emailError);
-      // Don't throw the error, just log it and continue
+    } else {
+      console.log('Payment required. No confirmation email sent until payment completes.');
     }
 
     if (subscriptionCoversGift) {
