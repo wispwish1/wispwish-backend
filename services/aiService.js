@@ -1252,7 +1252,54 @@ const pollTaskStatus = async (taskId, maxAttempts = 20, initialDelay = 5000) => 
 };
 */
 
-// Template-based poem fallback used when OpenAI quota is exhausted
+// Template-based voice message script fallback
+const generateTemplateVoiceScript = ({ recipientName, tone, memories, occasion, relationship, senderMessage, senderName }) => {
+  const memoryList = Array.isArray(memories) && memories.length > 0
+    ? memories.join(', ')
+    : 'the time we spent together';
+  const name = recipientName || 'you';
+  const sender = senderName || 'Someone special';
+
+  const openings = {
+    heartfelt: `${name}, I wanted to take a moment to tell you how much you mean to me.`,
+    funny: `Alright ${name}, I know I'm not great with words, but here goes nothing.`,
+    thoughtful: `Hey ${name}, I've been thinking a lot about you lately.`,
+    inspiring: `${name}, do you realize how amazing you are?`,
+    nostalgic: `I was just thinking back, ${name}, and I smiled.`,
+  };
+
+  const closings = {
+    heartfelt: `All my love,\n${sender}`,
+    funny: `Catch you later,\n${sender}`,
+    thoughtful: `Always thinking of you,\n${sender}`,
+    inspiring: `Keep being you,\n${sender}`,
+    nostalgic: `Good times,\n${sender}`,
+  };
+
+  const toneAdj = {
+    heartfelt: 'grateful for',
+    funny: 'laughing about',
+    thoughtful: 'reflecting on',
+    inspiring: 'inspired by',
+    nostalgic: 'smiling about',
+  };
+
+  const opening = openings[tone] || openings.heartfelt;
+  const adj = toneAdj[tone] || toneAdj.heartfelt;
+  const closing = closings[tone] || closings.heartfelt;
+
+  let text = `${opening}\n\n`;
+  text += `On this ${occasion}, I find myself ${adj} ${memoryList}.\n\n`;
+  if (relationship && relationship !== 'self') {
+    text += `Having you as my ${relationship} has been such a gift.\n\n`;
+  }
+  text += `I hope this ${occasion} brings you as much joy as you've brought into my life.\n\n`;
+  if (senderMessage) {
+    text += `${senderMessage}\n\n`;
+  }
+  text += closing;
+  return text;
+};
 const generateTemplatePoem = ({ recipientName, tone, memories, occasion, language = 'en', relationship, senderMessage }) => {
   const memoryList = Array.isArray(memories) && memories.length > 0
     ? memories
@@ -1474,14 +1521,27 @@ MANDATORY RULES:
 7. End warmly but not with a cliche
 8. ${voiceLength.instruction}`;
 
-        textContent = await callOpenAIChat({
-          messages: [
-            { role: 'system', content: systemPromptVoice },
-            { role: 'user', content: userPromptVoice }
-          ],
-          maxTokens: voiceLength.maxTokens,
-          temperature: voiceToneProfile.temperature
-        });
+        try {
+          textContent = await callOpenAIChat({
+            messages: [
+              { role: 'system', content: systemPromptVoice },
+              { role: 'user', content: userPromptVoice }
+            ],
+            maxTokens: voiceLength.maxTokens,
+            temperature: voiceToneProfile.temperature
+          });
+        } catch (voiceScriptError) {
+          console.warn('OpenAI voice script generation failed, using template fallback:', voiceScriptError.message);
+          textContent = generateTemplateVoiceScript({
+            recipientName,
+            tone,
+            memories,
+            occasion,
+            relationship,
+            senderMessage,
+            senderName
+          });
+        }
         prompt = null;
       }
       break;
